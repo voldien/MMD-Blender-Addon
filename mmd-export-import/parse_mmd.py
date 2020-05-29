@@ -43,6 +43,7 @@ const_short = 2
 const_ushort = 2
 const_int = 4
 const_uint = 4
+const_uint64 = 8
 const_float = 4
 
 const_vec2 = 8
@@ -64,7 +65,7 @@ deform_lookup_table = {0: 'bdef1',
 # 	return unpack(b'ffffffff', read)
 #
 def read_full_vertices_data(reader, struct_sizes, additional):
-	num_vertices = read_uint(reader.read(4))
+	num_vertices = read_uint(reader)
 	vertices = []
 
 	for i in range(0, num_vertices):
@@ -101,7 +102,7 @@ def read_full_vertex_data(reader, struct_sizes, additional):
 		for f in add_vec:
 			additional_vec.append(f)
 	# Deforming data.
-	weight_deform_type = read_ubyte(reader.read(const_byte))
+	weight_deform_type = read_ubyte(reader)
 	#
 	weight_data_size = struct_sizes[deform_lookup_table[weight_deform_type]]
 	weight_data = reader.read(weight_data_size)
@@ -112,21 +113,22 @@ def read_full_vertex_data(reader, struct_sizes, additional):
 
 
 def read_full_surface_data(reader, struct_size):
-	num_surfaces = read_uint(reader.read(const_uint))
+	num_surfaces = read_uint(reader)
 	surfaces = []
 	surface_index_size = struct_size['vertex_index_size']
 	for j in range(0, num_surfaces):
-		surface = reader.read(surface_index_size)
-		if surface_index_size == 1:
-			surfaces.append(read_ubyte(surface))
-		if surface_index_size == 2:
-			surfaces.append(read_sint(surface))
+		#		surface = reader.read(surface_index_size)
+		surfaces.append(read_index(reader, surface_index_size))
+	# if surface_index_size == 1:
+	# 	surfaces.append(read_ubyte(surface))
+	# if surface_index_size == 2:
+	# 	surfaces.append(read_sint(surface))
 
 	return surfaces
 
 
 def read_all_texture_paths(reader, struct_size):
-	num_textures = read_int(reader.read(const_int))
+	num_textures = read_int(reader)
 	paths = []
 	for j in range(0, num_textures):
 		s, path = read_string_ubyte(reader)
@@ -135,7 +137,7 @@ def read_all_texture_paths(reader, struct_size):
 
 
 def read_all_material(reader, struct_size):
-	num_materials = read_int(reader.read(const_int))
+	num_materials = read_int(reader)
 	materials = []
 	for a in range(0, num_materials):
 		_, local_name = read_string_ubyte(reader)
@@ -144,16 +146,16 @@ def read_all_material(reader, struct_size):
 		specular_color = read_vec3(reader)
 		specular_intensity = read_float(reader)
 		ambient_color = read_vec3(reader)
-		flag = read_ubyte(reader.read(const_flag))
+		flag = read_ubyte(reader)
 		edge_color = read_vec4(reader)
 		edge_scale = read_float(reader)
-		texture_index = read_ubyte(reader.read(struct_size['texture_index_size']))
-		environment_index = read_ubyte(reader.read(struct_size['texture_index_size']))
-		Environmentblendmode = read_ubyte(reader.read(const_byte))
-		ToonReference = read_ubyte(reader.read(const_byte))
-		Toonvalue = read_ubyte(reader.read(const_byte))
+		texture_index = read_index(reader, struct_size['texture_index_size'])
+		environment_index = read_index(reader, struct_size['texture_index_size'])
+		Environmentblendmode = read_ubyte(reader)
+		ToonReference = read_ubyte(reader)
+		Toonvalue = read_ubyte(reader)
 		meta = read_string_ubyte(reader)
-		surface_count = read_int(reader.read(const_int))
+		surface_count = read_int(reader)
 
 		material = {
 			'local_name': local_name,
@@ -164,7 +166,7 @@ def read_all_material(reader, struct_size):
 			'ambient_color': ambient_color,
 			'flag': flag,
 			'edge_color': edge_color,
-			'edge_scale':edge_scale,
+			'edge_scale': edge_scale,
 			'texture_index': texture_index,
 			'environment_index': environment_index,
 
@@ -182,16 +184,16 @@ def read_all_material(reader, struct_size):
 
 
 def read_all_bones(reader, struct_size):
-	num_bones = read_uint(reader.read(const_uint))
+	num_bones = read_uint(reader)
 	bones = []
 	for a in range(0, num_bones):
-		_,local_name = read_string_ubyte(reader, struct_size['text_encoding'])
-		_,universal_name = read_string_ubyte(reader, struct_size['text_encoding'])
+		_, local_name = read_string_ubyte(reader, struct_size['text_encoding'])
+		_, universal_name = read_string_ubyte(reader, struct_size['text_encoding'])
 
 		pos = read_vec3(reader)
 		index = read_index(reader, struct_size['bone_index_size'])
-		layer = read_int(reader.read(const_int))
-		flag = read_ushort(reader.read(const_short))
+		layer = read_int(reader)
+		flag = read_ushort(reader)
 
 		bone = {
 			'local_name': local_name,
@@ -209,8 +211,6 @@ def read_all_bones(reader, struct_size):
 		else:
 			tail_pos = read_vec3(reader)
 			bone['tail_pos'] = tail_pos
-
-
 
 		# Inherit bone
 		if flag & (const_bone_flag_inherit_rotation | const_bone_flag_inherit_translation):
@@ -239,9 +239,9 @@ def read_all_bones(reader, struct_size):
 		# IK.
 		if flag & const_bone_flag_ik:
 			target_index = read_index(reader, struct_size['bone_index_size'])
-			loop_count = read_int(reader.read(const_int))
+			loop_count = read_int(reader)
 			loop_radian = read_float(reader)
-			link_count = read_int(reader.read(const_int))
+			link_count = read_int(reader)
 
 			bone['target_index'] = target_index
 			bone['loop_count'] = loop_count
@@ -250,8 +250,8 @@ def read_all_bones(reader, struct_size):
 			limit_targets = []
 			for n in range(0, link_count):
 				bone_index = read_index(reader, struct_size['bone_index_size'])
-				has_limit = read_ubyte(reader.read(1))
-				link_target = {'bone_index' : bone_index, 'has_limit': has_limit}
+				has_limit = read_ubyte(reader)
+				link_target = {'bone_index': bone_index, 'has_limit': has_limit}
 				if has_limit == 1:
 					limit_min = read_vec3(reader)
 					limit_max = read_vec3(reader)
@@ -263,9 +263,10 @@ def read_all_bones(reader, struct_size):
 		bones.append(bone)
 	return bones
 
+
 def read_morph_material(reader, struct_size):
 	material_index = read_index(reader, struct_size['material_index_size'])
-	_ = read_ubyte(reader.read(const_byte))
+	_ = read_ubyte(reader)
 	diffuse = read_vec4(reader)
 	specular = read_vec3(reader)
 	specularity = read_float(reader)
@@ -274,33 +275,48 @@ def read_morph_material(reader, struct_size):
 	edge_size = read_float(reader)
 	texture_int = read_vec4(reader)
 	environment_tint = read_vec4(reader)
-	toon_tint  = read_vec4(reader)
+	toon_tint = read_vec4(reader)
 	return {'material_index', material_index}
-def read_morph_group(reader,struct_size):
+
+
+def read_morph_group(reader, struct_size):
 	pass
-def read_morph_vertex(reader,struct_size):
+
+
+def read_morph_vertex(reader, struct_size):
 	vertex_index = read_index(reader, struct_size['vertex_index_size'])
 	translation = read_vec3(reader)
 	return [vertex_index, translation]
-def read_morph_bone(reader,struct_size):
-	pass
-def read_morph_uv(reader,struct_size):
-	pass
-def read_morph_flip(reader,struct_size):
-	pass
-def read_morph_impulse(reader,struct_size):
+
+
+def read_morph_bone(reader, struct_size):
 	pass
 
+
+def read_morph_uv(reader, struct_size):
+	pass
+
+
+def read_morph_flip(reader, struct_size):
+	pass
+
+
+def read_morph_impulse(reader, struct_size):
+	pass
+
+
 def read_all_morph(f, struct_sizes):
-	num_morphs = read_int(f.read(const_int))
+	num_morphs = read_int(f)
 	morphs = []
-	morph_type_parse_lookup = [read_morph_group, read_morph_vertex, read_morph_bone, read_morph_uv, read_morph_uv, read_morph_uv, read_morph_uv, read_morph_uv, read_morph_material, read_morph_flip, read_morph_impulse]
+	morph_type_parse_lookup = [read_morph_group, read_morph_vertex, read_morph_bone, read_morph_uv, read_morph_uv,
+	                           read_morph_uv, read_morph_uv, read_morph_uv, read_morph_material, read_morph_flip,
+	                           read_morph_impulse]
 	for i in range(0, num_morphs):
-		_,local_name = read_string_ubyte(f, struct_sizes['text_encoding'])
-		_,universal_name = read_string_ubyte(f, struct_sizes['text_encoding'])
-		panel_type = read_ubyte(f.read(const_byte))
-		morph_type = read_ubyte(f.read(const_byte))
-		offset_size = read_int(f.read(const_int))
+		_, local_name = read_string_ubyte(f, struct_sizes['text_encoding'])
+		_, universal_name = read_string_ubyte(f, struct_sizes['text_encoding'])
+		panel_type = read_ubyte(f)
+		morph_type = read_ubyte(f)
+		offset_size = read_int(f)
 
 		#
 		parse_func = morph_type_parse_lookup[morph_type]
@@ -317,12 +333,13 @@ def read_all_morph(f, struct_sizes):
 
 	return morphs
 
+
 def read_all_display_frames(f, struct_sizes):
-	num_display_frames = read_int(f.read(const_int))
+	num_display_frames = read_int(f)
 	display_frames = []
 	for i in range(0, num_display_frames):
-		_,local_name = read_string_ubyte(f, struct_sizes['text_encoding'])
-		_,universal_name = read_string_ubyte(f, struct_sizes['text_encoding'])
+		_, local_name = read_string_ubyte(f, struct_sizes['text_encoding'])
+		_, universal_name = read_string_ubyte(f, struct_sizes['text_encoding'])
 		panel_type = read_ubyte(f.read(const_byte))
 		offset_size = read_int(f.read(const_int))
 		for n in range(0, offset_size):
@@ -335,44 +352,39 @@ def read_all_rigid(f, header):
 	return None
 
 
-
 def read_all_joints(f, header):
 	return None
-
-#TODO relocate  to util file.
-def read_f_short(reader):
-	return read_sint(reader.read(const_short))
 
 
 def read_index(reader, size_type):
 	size_hash_lookup = {1: read_ubyte, 2: read_ushort, 4: read_uint}
 	lookup_func = size_hash_lookup[size_type]
-	data = reader.read(size_type)
-	return lookup_func(data)
+	# data = reader.read(size_type)
+	return lookup_func(reader)
 
 
 def read_uint(read):
-	return unpack(b'<I', read)[0]
+	return unpack(b'<I', read.read(const_int))[0]
 
 
 def read_int(read):
-	return unpack(b'<i', read)[0]
+	return unpack(b'<i', read.read(const_int))[0]
 
 
 def read_sint(read):
-	return unpack(b'H', read)[0]
+	return unpack(b'H', read.read(const_short))[0]
 
 
 def read_ushort(read):
-	return unpack(b'h', read)[0]
+	return unpack(b'h', read.read(const_short))[0]
 
 
 def read_uint64(read):
-	return unpack(b'<Q', read)[0]
+	return unpack(b'<Q', read.read(const_uint64))[0]
 
 
 def read_ubyte(read):
-	return unpack(b'B', read)[0]
+	return unpack(b'B', read.read(const_byte))[0]
 
 
 def read_vec3(read):
@@ -386,8 +398,9 @@ def read_vec4(read):
 def read_float(read):
 	return unpack(b'f', read.read(const_float))[0]
 
+
 def read_string_ubyte(reader, encoding=0):
-	size = read_uint(reader.read(4))
+	size = read_uint(reader)
 	data = reader.read(size)
 	if encoding == 0:
 		data = data.decode("utf-16", "strict")

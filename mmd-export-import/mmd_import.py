@@ -218,7 +218,7 @@ def process_header(f):
 	header = {}
 
 	#
-	header['signature'] = str(parse_mmd.read_uint(f.read(4)))
+	header['signature'] = str(parse_mmd.read_uint(f))
 	header['version'] = float(parse_mmd.read_float(f))
 
 	if validate_version_signature(header['signature'], header['version']):
@@ -226,7 +226,7 @@ def process_header(f):
 	if header['version'] == 2.0:
 		pass
 
-	header['globals_count'] = parse_mmd.read_ubyte(f.read(1))
+	header['globals_count'] = parse_mmd.read_ubyte(f)
 	# Data[0] = Vertex
 	# Data[1] = Face
 	# Data[2] = Texture
@@ -243,7 +243,7 @@ def process_header(f):
 	for n in index_attribute_names:
 		# Continue grabbing index data only if additional exits.
 		if nindex < header['globals_count']:
-			header[n] = parse_mmd.read_ubyte(f.read(1))
+			header[n] = parse_mmd.read_ubyte(f)
 			nindex = nindex + 1
 	# Handle unused global index.
 	if nindex < header['globals_count']:
