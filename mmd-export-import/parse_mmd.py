@@ -335,11 +335,15 @@ def read_all_morph(f, struct_sizes):
 
 
 def read_all_display_frames(f, struct_sizes):
+	return None
 	num_display_frames = read_int(f)
+
 	display_frames = []
 	for i in range(0, num_display_frames):
+		#
 		_, local_name = read_string_ubyte(f, struct_sizes['text_encoding'])
 		_, universal_name = read_string_ubyte(f, struct_sizes['text_encoding'])
+
 		panel_type = read_ubyte(f.read(const_byte))
 		offset_size = read_int(f.read(const_int))
 		for n in range(0, offset_size):
@@ -349,6 +353,7 @@ def read_all_display_frames(f, struct_sizes):
 
 
 def read_all_rigid(f, header):
+
 	return None
 
 
@@ -430,4 +435,8 @@ def unpack_array(read, array_type, array_stride, array_byteswap):
 
 
 def read_all_softbody(f, header):
+	return None
+
+
+def read_all_rigidbodies(f, header):
 	return None

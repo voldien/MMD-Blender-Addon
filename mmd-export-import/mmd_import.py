@@ -226,7 +226,6 @@ def process_header(f):
 	if header['version'] == 2.0:
 		pass
 
-	header['globals_count'] = parse_mmd.read_ubyte(f)
 	# Data[0] = Vertex
 	# Data[1] = Face
 	# Data[2] = Texture
@@ -236,6 +235,9 @@ def process_header(f):
 	# Data[6] = Frame
 	# Data[7] = Rigidbody
 	# Data[8] = Joint
+	header['globals_count'] = parse_mmd.read_ubyte(f)
+
+	data_section_names = ['Vertex', 'Face', 'Texture', 'Material', 'Bone', 'Morph', 'Frame', 'Rigidbody', 'Joint', 'Softbody']
 	index_attribute_names = ['text_encoding', 'additional_vec4_count', 'vertex_index_size', 'texture_index_size',
 	                         'material_index_size',
 	                         'bone_index_size', 'morph_index_size', 'rigid_index_size']
@@ -285,8 +287,6 @@ def compute_type_sizes(header):
 	        # TOOD add more.
 	        }
 
-
-
 def load(context,
          filepath,
          *,
@@ -325,10 +325,11 @@ def load(context,
 		subprogress = progress.enter_substeps(3, "Parsing MMD file...")
 		header = []
 		with open(filepath, 'rb') as f:
-			# Get information
+			# Get information about the model and its internal.
 			header = process_header(f)
 			struct_sizes = compute_type_sizes(header)
 			header.update(struct_sizes)
+
 			version = header['version']
 			# Loading all nedded data.
 			if version >= 2.0:
@@ -359,19 +360,23 @@ def load(context,
 				# Morph
 				morphs = parse_mmd.read_all_morph(f, header)
 				print(morphs)
-				# Displayframe count
-				# displayFrames = parse_mmd.read_all_display_frames(f, header)
-				# print(displayFrames)
-				# # Rigidbody count
-				# rigidbodies = parse_mmd.read_all_rigidbodies(f, header)
-				# print(rigidbodies)
+				#Displayframe count
+				displayFrames = parse_mmd.read_all_display_frames(f, header)
+				print(displayFrames)
+				# Rigidbody count
+				rigidbodies = parse_mmd.read_all_rigidbodies(f, header)
+				print(rigidbodies)
 				# # Joint count
-				# joints = parse_mmd.read_all_joints(f, header)
-				# print(joints)
+				joints = parse_mmd.read_all_joints(f, header)
+				print(joints)
 			if version >= 2.1:
 				softbodies = parse_mmd.read_all_softbody(f, header)
 				print(softbodies)
 
+			# Check position and the size of the file and report the state of parsing the file.
+			size = os.path.getsize(filepath)
+			left = size - f.tell()
+			print(left)
 		# Name the character.
 		root = create_bone_system(bones)
 		root.name = header['local_character_name']
