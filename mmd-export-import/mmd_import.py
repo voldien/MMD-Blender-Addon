@@ -249,36 +249,13 @@ def process_header(f):
 	if nindex < header['globals_count']:
 		f.seek(header['globals_count'] - nindex)
 
+	# Load name and comments.
 	encoding = header['text_encoding']
 
-	#local_character_name_size = parse_mmd.read_uint(f.read(4))
-	#print(local_character_name_size)
 	_, header['local_character_name'] = parse_mmd.read_string_ubyte(f,encoding)
-	# if header['text_encoding'] == 0:
-	# 	header['local_character_name'] = header['local_character_name'].decode("utf-16", "strict")
-	# elif header['text_encoding'] == 1:
-	# 	header['local_character_name'] = header['local_character_name'].decode("utf-8", "strict")
-
-	#universal_character_name_size = parse_mmd.read_uint(f.read(4))
 	_, header['universal_character_name_size'] = parse_mmd.read_string_ubyte(f,encoding)
-	# if header['text_encoding'] == 0:
-	# 	header['universal_character_name_size'] = header['universal_character_name_size'].decode("utf-16", "strict")
-	# elif header['text_encoding'] == 1:
-	# 	header['universal_character_name_size'] = header['universal_character_name_size'].decode("utf-8", "strict")
-
-	#local_comment_size = parse_mmd.read_uint(f.read(4))
 	_, header['comment_local'] = parse_mmd.read_string_ubyte(f,encoding)
-	# if header['text_encoding'] == 0:
-	# 	header['comment_local'] = header['comment_local'].decode("utf-16", "strict")
-	# elif header['text_encoding'] == 1:
-	# 	header['comment_local'] = header['comment_local'].decode("utf-8", "strict")
-
-	#universal_comment_size = parse_mmd.read_uint(f.read(4))
 	_, header['comment_universal'] = parse_mmd.read_string_ubyte(f,encoding)
-	# if header['text_encoding'] == 0:
-	# 	header['comment_universal'] = header['comment_universal'].decode("utf-16", "strict")
-	# elif header['text_encoding'] == 1:
-	# 	header['comment_universal'] = header['comment_universal'].decode("utf-8", "strict")
 
 	return header
 
