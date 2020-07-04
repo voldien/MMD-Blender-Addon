@@ -418,12 +418,99 @@ def read_all_display_frames(f, struct_sizes):
 	return display_frames
 
 
-def read_all_rigid(f, header):
+def read_all_rigidbodies(f, struct_sizes):
 	num_rigidbodies = read_int(f)
-	return None
+	rigidbodies = []
+	for _ in range(0, num_rigidbodies):
+		_, local_name = read_string_ubyte(f)
+		_, universal_name = read_string_ubyte(f)
+
+		related_bone_index = read_index(f, struct_sizes['bone_index_size'])
+		group_id = read_ubyte(f)
+		non_collision_group = read_sint(f)
+
+		shape = read_ubyte(f)
+		shape_size = read_vec3(f)
+		shape_position = read_vec3(f)
+		shape_rotation = read_vec3(f)
+
+		mass = read_float(f)
+		move_attenuation = read_float(f)
+		rotation_damping = read_float(f)
+		repulsion = read_float(f)
+		friction_force = read_float(f)
+
+		physic_mode = read_ubyte(f)
+
+		rigidbody = {
+			'local_name': local_name,
+			'universal_name': universal_name,
+
+			'related_bone_index': related_bone_index,
+			'group_id': group_id,
+			'non_collision_group': non_collision_group,
+
+			'shape': shape,
+			'shape_size': shape_size,
+			'shape_position': shape_position,
+			'shape_rotation': shape_rotation,
+
+			'mass': mass,
+			'move_attenuation': move_attenuation,
+			'rotation_damping': rotation_damping,
+			'repulsion': repulsion,
+			'friction_force': friction_force,
+			'physic_mode': physic_mode 
+		}
+
+		rigidbodies.append(rigidbody)
+
+	return rigidbodies
 
 
-def read_all_joints(f, header):
+def read_all_joints(f, struct_sizes):
+	num_joints = read_int(f)
+	joints= []
+	for a in range(0, num_joints):
+		_, local_name = read_string_ubyte(f)
+		_, universal_name = read_string_ubyte(f)
+		joint_type = read_ubyte(f)
+		rigidbody_indexA = read_index(f, struct_sizes['rigid_index_size'])
+		rigidbody_indexB = read_index(f, struct_sizes['rigid_index_size'])
+
+		position = read_vec3(f)
+		rotation = read_vec3(f)
+		position_min = read_vec3(f)
+		position_max = read_vec3(f)
+		rotation_min = read_vec3(f)
+		rotation_max = read_vec3(f)
+		spring_position = read_vec3(f)
+		spring_rotation = read_vec3(f)
+
+		joint = {
+			'local_name': local_name,
+			'universal_name': universal_name,
+
+			'joint_type': joint_type,
+			'rigidbody_indexA': rigidbody_indexA,
+			'rigidbody_indexB': rigidbody_indexB,
+
+			'position': position,
+			'rotation': rotation,
+			'position_min': position_min,
+			'position_max': position_max,
+			'rotation_min': rotation_min,
+			'rotation_max': rotation_min,
+			'spring_position': rotation_min,
+			'spring_rotation': rotation_min
+		}
+
+		joints.append(joint)
+
+	return joints
+
+
+def read_all_softbody(f, header):
 	return None
 
 
@@ -500,9 +587,3 @@ def unpack_array(read, array_type, array_stride, array_byteswap):
 	return data_array
 
 
-def read_all_softbody(f, header):
-	return None
-
-
-def read_all_rigidbodies(f, header):
-	return None
