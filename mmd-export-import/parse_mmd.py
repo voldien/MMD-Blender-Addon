@@ -203,6 +203,10 @@ def read_all_material(reader, struct_size):
 			'texture_index': texture_index,
 			'environment_index': environment_index,
 
+			'environment_blend_mode': Environmentblendmode,
+			'toon_reference': ToonReference,
+			'toon_value': Toonvalue,
+
 			'meta': meta,
 			'surface_count': surface_count,
 		}
@@ -230,7 +234,7 @@ def read_all_bones(reader, struct_size):
 
 		bone = {
 			'local_name': local_name,
-			'universal_name': local_name,
+			'universal_name': universal_name,
 			'position': pos,
 			'parent_bone': index,
 			'layer': layer,
@@ -292,7 +296,6 @@ def read_all_bones(reader, struct_size):
 					link_target['limit_max'] = limit_max
 				limit_targets.append(link_target)
 			bone['links'] = limit_targets
-		print(bone)
 		bones.append(bone)
 	return bones
 
@@ -313,7 +316,9 @@ def read_morph_material(reader, struct_size):
 
 
 def read_morph_group(reader, struct_size):
-	pass
+	morph_index = read_index(reader, struct_size['morph_index_size'])
+	influence = read_float(reader)
+	return [morph_index, influence]
 
 
 def read_morph_vertex(reader, struct_size):
@@ -323,19 +328,30 @@ def read_morph_vertex(reader, struct_size):
 
 
 def read_morph_bone(reader, struct_size):
-	pass
+	bone_index = read_index(reader, struct_size['bone_index_size'])
+	translation = read_vec3(reader)
+	rotation = read_vec4(reader)
+	return [bone_index, translation, rotation]
 
 
 def read_morph_uv(reader, struct_size):
-	pass
+	vertex_index = read_index(reader, struct_size['vertex_index_size'])
+	uv = read_vec4(reader)
+	return [vertex_index, uv]
 
 
 def read_morph_flip(reader, struct_size):
-	pass
+	morph_index = read_index(reader, struct_size['morph_index_size'])
+	influence = read_float(reader)
+	return [morph_index, influence]
 
 
 def read_morph_impulse(reader, struct_size):
-	pass
+	rigidbody_index = read_index(reader, struct_size['rigid_index_size'])
+	local_flag = read_ubyte(reader)
+	movement_speed = read_vec3(reader)
+	rotation_torque = read_vec3(reader)
+	return [rigidbody_index, local_flag, movement_speed, rotation_torque]
 
 
 def read_all_morph(f, struct_sizes):
@@ -351,41 +367,59 @@ def read_all_morph(f, struct_sizes):
 		morph_type = read_ubyte(f)
 		offset_size = read_int(f)
 
-		#
-		parse_func = morph_type_parse_lookup[morph_type]
-		for n in range(0, offset_size):
-			parse_func(f, struct_sizes)
-
 		morph = {
 			'local_name': local_name,
-			'universal_name': local_name,
+			'universal_name': universal_name,
 			'morph_type': morph_type,
+			'data' : []
 		}
-		print(morph)
+		#
+		parse_func = morph_type_parse_lookup[morph_type]
+		for _ in range(0, offset_size):
+			morph['data'].append(parse_func(f, struct_sizes))
 		morphs.append(morph)
-
 	return morphs
 
 
+def read_frame_bone(reader, struct_sizes):
+	return [read_index(reader, struct_sizes['bone_index_size'])]
+
+
+def read_frame_morph(reader, struct_sizes):
+	return [read_index(reader, struct_sizes['morph_index_size'])]
+
+
 def read_all_display_frames(f, struct_sizes):
-	return None
 	num_display_frames = read_int(f)
 
 	display_frames = []
+	frame_lookup_table = [read_frame_bone, read_frame_morph]
 	for i in range(0, num_display_frames):
 		#
 		_, local_name = read_string_ubyte(f, struct_sizes['text_encoding'])
 		_, universal_name = read_string_ubyte(f, struct_sizes['text_encoding'])
 
-		panel_type = read_ubyte(f.read(const_byte))
-		offset_size = read_int(f.read(const_int))
-		for n in range(0, offset_size):
-			frame_type = read_ubyte(f.read(const_byte))
+		special_flag = read_ubyte(f)
+		frame_count = read_int(f)
+		frame = {
+			'local_name': local_name,
+			'universal_name': universal_name,
+			'frame_type': special_flag,
+			'data': []
+		}
+
+		for _ in range(0, frame_count):
+			frame_type = read_ubyte(f)
+
+			frame['data'].append(frame_lookup_table[frame_type](f, struct_sizes))
+			
+		display_frames.append(frame)
 
 	return display_frames
 
 
 def read_all_rigid(f, header):
+	num_rigidbodies = read_int(f)
 	return None
 
 
