@@ -323,19 +323,19 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 	# mesh.uv_layers.new().data
 	vertices_data = []
 	normal_data = []
-	uv = mesh.uv_textures.new()
-	uv.name = "UV"
 
 
-	blen_uvs = mesh.uv_layers[0]
-	print(blen_uvs.name)
+
+
 	for i, v_ in enumerate(vertices):
 		v = v_['vertex']
 		vertices_data.append([v[0], v[1], v[2]])
 		normal_data.append([v[3], v[4], v[5]])
 
+
 		#uv.data[i].uv = v[6:7]
 	mesh.vertices.foreach_set("co", unpack_list(vertices_data))
+	mesh.loops.foreach_get("normal",  unpack_list(normal_data))
 	#			bm.verts.new([v[0],v[1],v[2]])  # add a new vert
 
 	facesData = []
@@ -345,6 +345,16 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 	lidx = 0
 	for i0, i1, i2 in zip(*[iter(surfaces)] * 3):
 		facesData.append([i0, i1, i2])
+
+	mesh.loops.foreach_set("vertex_index", loops_vert_idx)
+	mesh.polygons.foreach_set("loop_start", faces_loop_start)
+	mesh.polygons.foreach_set("loop_total", faces_loop_total)
+
+	uv = mesh.uv_textures.new()
+	uv.name = "UV"
+	blen_uvs = mesh.uv_layers[0]
+	for i, v in enumerate(vertices):
+		blen_uvs.data[i].uv = (v[6], v[7])
 
 		# Compute all groups used.
 #		vg = obj.vertex_groups
@@ -361,76 +371,76 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 		# me.loops.add(tot_loops)
 		# mesh.face.new(surfaces)
 
-		bpy.ops.object.mode_set(mode='OBJECT')
-		#mesh.from_pydata(vertices_data, [], facesData)
-		# important to not remove loop normals here!
-		mesh.validate(clean_customdata=False)
-		mesh.update()
+	bpy.ops.object.mode_set(mode='OBJECT')
+	#mesh.from_pydata(vertices_data, [], facesData)
+	# important to not remove loop normals here!
+	mesh.validate(clean_customdata=False)
+	mesh.update()
 
-		# Create all the weight groups from the bones.
-		for bone in bones:
-			obj.vertex_groups.new("")
+	# Create all the weight groups from the bones.
+	for bone in bones:
+		obj.vertex_groups.new("")
 
-		# Assigne all bone vertex influence.
-		for i, vertex in enumerate(vertices):
-			vertex_indices = i
-			deform_type = vertex['weight_deform_type']
-			weight_data = vertex['weight_data']
+	# Assigne all bone vertex influence.
+	for i, vertex in enumerate(vertices):
+		vertex_indices = i
+		deform_type = vertex['weight_deform_type']
+		weight_data = vertex['weight_data']
 
-			if deform_type == parse_mmd.deform_type_bdef1:
-				bone_index1 = weight_data[0]
-				obj.vertex_groups[bone_index1].add(
-					[vertex_indices], 1, 'REPLACE')
-			elif deform_type == parse_mmd.deform_type_bdef2:
-				bone_index1 = weight_data[0]
-				bone_index2 = weight_data[1]
-				weight = weight_data[2]
-				obj.vertex_groups[bone_index1].add(
-					[vertex_indices], weight, 'REPLACE')
-				obj.vertex_groups[bone_index2].add(
-					[vertex_indices], 1.0 - weight, 'REPLACE')
-			elif deform_type == parse_mmd.deform_type_bdef4:
-				bone_index1 = weight_data[0]
-				bone_index2 = weight_data[1]
-				bone_index3 = weight_data[2]
-				bone_index4 = weight_data[3]
-				weight1 = weight_data[4]
-				weight2 = weight_data[5]
-				weight3 = weight_data[6]
-				weight4 = weight_data[7]
-				obj.vertex_groups[bone_index1].add(
-					[vertex_indices], weight1, 'REPLACE')
-				obj.vertex_groups[bone_index2].add(
-					[vertex_indices], weight2, 'REPLACE')
-				obj.vertex_groups[bone_index3].add(
-					[vertex_indices], weight3, 'REPLACE')
-				obj.vertex_groups[bone_index4].add(
-					[vertex_indices], weight4, 'REPLACE')
-			elif deform_type == parse_mmd.deform_type_sdef:
-				pass
-			elif deform_type == parse_mmd.deform_type_qdef:
-				bone_index1 = weight_data[0]
-				bone_index2 = weight_data[1]
-				bone_index3 = weight_data[2]
-				bone_index4 = weight_data[3]
-				weight1 = weight_data[4]
-				weight2 = weight_data[5]
-				weight3 = weight_data[6]
-				weight4 = weight_data[7]
-				obj.vertex_groups[bone_index1].add(
-					[vertex_indices], weight1, 'REPLACE')
-				obj.vertex_groups[bone_index2].add(
-					[vertex_indices], weight2, 'REPLACE')
-				obj.vertex_groups[bone_index3].add(
-					[vertex_indices], weight3, 'REPLACE')
-				obj.vertex_groups[bone_index4].add(
-					[vertex_indices], weight4, 'REPLACE')
-			else:
-				assert(0)
+		if deform_type == parse_mmd.deform_type_bdef1:
+			bone_index1 = weight_data[0]
+			obj.vertex_groups[bone_index1].add(
+				[vertex_indices], 1, 'REPLACE')
+		elif deform_type == parse_mmd.deform_type_bdef2:
+			bone_index1 = weight_data[0]
+			bone_index2 = weight_data[1]
+			weight = weight_data[2]
+			obj.vertex_groups[bone_index1].add(
+				[vertex_indices], weight, 'REPLACE')
+			obj.vertex_groups[bone_index2].add(
+				[vertex_indices], 1.0 - weight, 'REPLACE')
+		elif deform_type == parse_mmd.deform_type_bdef4:
+			bone_index1 = weight_data[0]
+			bone_index2 = weight_data[1]
+			bone_index3 = weight_data[2]
+			bone_index4 = weight_data[3]
+			weight1 = weight_data[4]
+			weight2 = weight_data[5]
+			weight3 = weight_data[6]
+			weight4 = weight_data[7]
+			obj.vertex_groups[bone_index1].add(
+				[vertex_indices], weight1, 'REPLACE')
+			obj.vertex_groups[bone_index2].add(
+				[vertex_indices], weight2, 'REPLACE')
+			obj.vertex_groups[bone_index3].add(
+				[vertex_indices], weight3, 'REPLACE')
+			obj.vertex_groups[bone_index4].add(
+				[vertex_indices], weight4, 'REPLACE')
+		elif deform_type == parse_mmd.deform_type_sdef:
+			pass
+		elif deform_type == parse_mmd.deform_type_qdef:
+			bone_index1 = weight_data[0]
+			bone_index2 = weight_data[1]
+			bone_index3 = weight_data[2]
+			bone_index4 = weight_data[3]
+			weight1 = weight_data[4]
+			weight2 = weight_data[5]
+			weight3 = weight_data[6]
+			weight4 = weight_data[7]
+			obj.vertex_groups[bone_index1].add(
+				[vertex_indices], weight1, 'REPLACE')
+			obj.vertex_groups[bone_index2].add(
+				[vertex_indices], weight2, 'REPLACE')
+			obj.vertex_groups[bone_index3].add(
+				[vertex_indices], weight3, 'REPLACE')
+			obj.vertex_groups[bone_index4].add(
+				[vertex_indices], weight4, 'REPLACE')
+		else:
+			assert(0)
 
-		mesh.polygons.foreach_set("use_smooth", [True] * len(mesh.polygons))
-		mesh.normals_split_custom_set(normal_data)
-		bpy.ops.object.mode_set(mode='OBJECT')
+	mesh.polygons.foreach_set("use_smooth", [True] * len(mesh.polygons))
+	mesh.normals_split_custom_set(normal_data)
+	bpy.ops.object.mode_set(mode='OBJECT')
 
 	return obj, mesh
 
