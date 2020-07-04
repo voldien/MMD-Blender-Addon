@@ -510,8 +510,23 @@ def read_all_joints(f, struct_sizes):
 	return joints
 
 
-def read_all_softbody(f, header):
-	return None
+def read_all_softbody(f, struct_sizes):
+	num_softbodies = read_int(f)
+	softbodies = []
+	for _ in range(0, num_softbodies):
+		_, local_name = read_string_ubyte(f)
+		_, universal_name = read_string_ubyte(f)
+		shape = read_ubyte(f)
+		material_index = read_index(f, struct_sizes['material_index_size'])
+		group_id = read_ubyte(f)
+		non_collision_group = read_sint(f)
+
+		softbody = {
+			'local_name': local_name,
+			'universal_name': universal_name,
+		}
+		softbodies.append(softbody)
+	return softbodies
 
 
 def read_index(reader, size_type):
@@ -519,7 +534,6 @@ def read_index(reader, size_type):
 	lookup_func = size_hash_lookup[size_type]
 	# data = reader.read(size_type)
 	return lookup_func(reader)
-
 
 def read_uint(read):
 	return unpack(b'<I', read.read(const_int))[0]
