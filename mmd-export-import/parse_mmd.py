@@ -55,6 +55,11 @@ const_vec3 = 12
 const_vec4 = 16
 
 # Lookup tables.
+deform_type_bdef1 = 0
+deform_type_bdef2 = 1
+deform_type_bdef4 = 2
+deform_type_sdef = 3
+deform_type_qdef = 4
 deform_lookup_table = {0: 'bdef1',
                        1: 'bdef2',
                        2: 'bdef4',

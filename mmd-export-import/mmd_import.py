@@ -1,4 +1,5 @@
 # if "bpy" in locals():
+from bpy_extras.mesh_utils import ngon_tessellate
 if "bpy" in locals():
 	import importlib
 
@@ -286,6 +287,154 @@ def create_mesh(new_objects,
 	me = bpy.data.meshes.new(dataname)
 
 
+def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materials, use_material_import):
+
+	# if unique_smooth_groups:
+	#     sharp_edges = set()
+	#     smooth_group_users = {context_smooth_group: {}
+	#                           for context_smooth_group in unique_smooth_groups.keys()}
+	#     context_smooth_group_old = -1
+
+	# Used for storing fgon keys when we need to tesselate/untesselate them (ngons with hole).
+	fgon_edges = set()
+	edges = []
+	tot_loops = 0
+
+	mesh = bpy.data.meshes.new(header['local_character_name'])  # add a new mesh
+	obj = bpy.data.objects.new(header['local_character_name'], mesh)
+
+	# # make sure the list isnt too big
+	# for material in materials:
+	#     me.materials.append(material)
+
+	mesh.vertices.add(len(vertices))
+	mesh.loops.add(tot_loops)
+	mesh.polygons.add(len(surfaces) / 3)
+
+	# Add object the scene.
+	scene = bpy.context.scene
+	scene.objects.link(obj)  # put the object into the scene (link)
+	scene.objects.active = obj  # set as the active object in the scene
+	obj.select = True  # select object
+
+	# me.loops.foreach_set("normal", loops_nor)
+	#				bm = bmesh.new()
+
+	# mesh.uv_layers.new().data
+	vertices_data = []
+	normal_data = []
+	uv = mesh.uv_textures.new()
+	uv.name = "UV"
+
+
+	blen_uvs = mesh.uv_layers[0]
+	print(blen_uvs.name)
+	for i, v_ in enumerate(vertices):
+		v = v_['vertex']
+		vertices_data.append([v[0], v[1], v[2]])
+		normal_data.append([v[3], v[4], v[5]])
+
+		#uv.data[i].uv = v[6:7]
+	mesh.vertices.foreach_set("co", unpack_list(vertices_data))
+	#			bm.verts.new([v[0],v[1],v[2]])  # add a new vert
+
+	facesData = []
+	loops_vert_idx = []
+	faces_loop_start = []
+	faces_loop_total = []
+	lidx = 0
+	for i0, i1, i2 in zip(*[iter(surfaces)] * 3):
+		facesData.append([i0, i1, i2])
+
+		# Compute all groups used.
+#		vg = obj.vertex_groups
+
+		# Load all UV data.
+	# if verts_tex and me.polygons:
+	# 	me.uv_textures.new()
+	#	for
+#bpy.ops.object.vertex_group_add()
+#bpy.ops.object.shape_key_add(from_mix=False)
+#bpy.ops.mesh.uv_texture_add()
+#		vg.add([vertice index], weight, "ADD")
+		# me.vertices.add(len(verts_loc))
+		# me.loops.add(tot_loops)
+		# mesh.face.new(surfaces)
+
+		bpy.ops.object.mode_set(mode='OBJECT')
+		#mesh.from_pydata(vertices_data, [], facesData)
+		# important to not remove loop normals here!
+		mesh.validate(clean_customdata=False)
+		mesh.update()
+
+		# Create all the weight groups from the bones.
+		for bone in bones:
+			obj.vertex_groups.new("")
+
+		# Assigne all bone vertex influence.
+		for i, vertex in enumerate(vertices):
+			vertex_indices = i
+			deform_type = vertex['weight_deform_type']
+			weight_data = vertex['weight_data']
+
+			if deform_type == parse_mmd.deform_type_bdef1:
+				bone_index1 = weight_data[0]
+				obj.vertex_groups[bone_index1].add(
+					[vertex_indices], 1, 'REPLACE')
+			elif deform_type == parse_mmd.deform_type_bdef2:
+				bone_index1 = weight_data[0]
+				bone_index2 = weight_data[1]
+				weight = weight_data[2]
+				obj.vertex_groups[bone_index1].add(
+					[vertex_indices], weight, 'REPLACE')
+				obj.vertex_groups[bone_index2].add(
+					[vertex_indices], 1.0 - weight, 'REPLACE')
+			elif deform_type == parse_mmd.deform_type_bdef4:
+				bone_index1 = weight_data[0]
+				bone_index2 = weight_data[1]
+				bone_index3 = weight_data[2]
+				bone_index4 = weight_data[3]
+				weight1 = weight_data[4]
+				weight2 = weight_data[5]
+				weight3 = weight_data[6]
+				weight4 = weight_data[7]
+				obj.vertex_groups[bone_index1].add(
+					[vertex_indices], weight1, 'REPLACE')
+				obj.vertex_groups[bone_index2].add(
+					[vertex_indices], weight2, 'REPLACE')
+				obj.vertex_groups[bone_index3].add(
+					[vertex_indices], weight3, 'REPLACE')
+				obj.vertex_groups[bone_index4].add(
+					[vertex_indices], weight4, 'REPLACE')
+			elif deform_type == parse_mmd.deform_type_sdef:
+				pass
+			elif deform_type == parse_mmd.deform_type_qdef:
+				bone_index1 = weight_data[0]
+				bone_index2 = weight_data[1]
+				bone_index3 = weight_data[2]
+				bone_index4 = weight_data[3]
+				weight1 = weight_data[4]
+				weight2 = weight_data[5]
+				weight3 = weight_data[6]
+				weight4 = weight_data[7]
+				obj.vertex_groups[bone_index1].add(
+					[vertex_indices], weight1, 'REPLACE')
+				obj.vertex_groups[bone_index2].add(
+					[vertex_indices], weight2, 'REPLACE')
+				obj.vertex_groups[bone_index3].add(
+					[vertex_indices], weight3, 'REPLACE')
+				obj.vertex_groups[bone_index4].add(
+					[vertex_indices], weight4, 'REPLACE')
+			else:
+				assert(0)
+
+		mesh.polygons.foreach_set("use_smooth", [True] * len(mesh.polygons))
+		mesh.normals_split_custom_set(normal_data)
+		bpy.ops.object.mode_set(mode='OBJECT')
+
+	return obj, mesh
+
+
 def compute_type_sizes(header):
 	return {'bdef1': header['bone_index_size'],
 	        'bdef2': header['bone_index_size'] * 2 + parse_mmd.const_float,
@@ -366,16 +515,16 @@ def load(context,
 				#print(bones)
 				# Morph
 				morphs = parse_mmd.read_all_morph(f, header)
-				#print(morphs)
+				print(morphs)
 				#Displayframe count
 				displayFrames = parse_mmd.read_all_display_frames(f, header)
-				#print(displayFrames)
+				print(displayFrames)
 				# Rigidbody count
 				rigidbodies = parse_mmd.read_all_rigidbodies(f, header)
-				#print(rigidbodies)
+				print(rigidbodies)
 				# # Joint count
 				joints = parse_mmd.read_all_joints(f, header)
-				#print(joints)
+				print(joints)
 			if version >= 2.1:
 				softbodies = parse_mmd.read_all_softbody(f, header)
 				print(softbodies)
@@ -388,7 +537,8 @@ def load(context,
 		progress.step("Done, loading bone skeleton system...")
 		root,bone_objects = create_bone_system(bones)
 
-
+		mesh_object, mesh = create_geometry(vertices, surfaces, bone_objects, header, use_edges, None, use_material_import)
+		mesh_object.parent = root;
 		#object_materials = create_materials(filepath, texture_paths, materials)
 		#root.data.materils = object_materials
 
@@ -400,86 +550,13 @@ def load(context,
 
 		progress.step("Done, loading geometry data..")
 
-		# TODO relocate
-		mesh = bpy.data.meshes.new(header['local_character_name'])  # add a new mesh
-		obj = bpy.data.objects.new(header['local_character_name'], mesh)  # add a new object using the mesh
-
-		# Add object the scene.
-		scene = bpy.context.scene
-		scene.objects.link(obj)  # put the object into the scene (link)
-		scene.objects.active = obj  # set as the active object in the scene
-		obj.select = True  # select object
-
-		# me.loops.foreach_set("normal", loops_nor)
-		#				bm = bmesh.new()
-
-		# mesh.uv_layers.new().data
-		vertices_data = []
-		normal_data = []
-		uv = mesh.uv_textures.new()
-		uv.name = "UV"
-
-		mesh.vertices.add(len(vertices))
-		#mesh.loops.add(tot_loops)
-		mesh.polygons.add(len(surfaces) / 3)
-
-		blen_uvs = mesh.uv_layers[0]
-		print(blen_uvs.name)
-		for i, v_ in enumerate(vertices):
-			v = v_['vertex']
-			vertices_data.append([v[0], v[1], v[2]])
-			normal_data.append([v[3], v[4], v[5]])
-			#uv.data[i].uv = v[6:7]
-
-		#			bm.verts.new([v[0],v[1],v[2]])  # add a new vert
-
-		facesData = []
-		for i0, i1, i2 in zip(*[iter(surfaces)] * 3):
-			facesData.append([i0, i1, i2])
-
-		# Compute all groups used.
-#		vg = obj.vertex_groups
-
-		# Load all UV data.
-
-	#	for
-
-#		vg.add([vertice index], weight, "ADD")
-		# me.vertices.add(len(verts_loc))
-		# me.loops.add(tot_loops)
-		# mesh.face.new(surfaces)
-		bpy.ops.object.mode_set(mode='OBJECT')
-		mesh.from_pydata(vertices_data, [], facesData)
-		mesh.validate(clean_customdata=False)  # important to not remove loop normals here!
-		mesh.update()
-
-
-		progress.step("Done, Bone Groups...")
-		for vertex in vertices:
-			deform_type = vertex['weight_deform_type']
-			if deform_type == 0:
-				pass
-			if deform_type == 1:
-				pass
-			bone_index = 0
-			bone_name = bone_objects[bone_index].name
-			vg = mesh.vertex_groups.get(bone_name)
-			if vg is None:
-				vg = obj.vertex_groups.new(bone_name)
-
-
-		mesh.polygons.foreach_set("use_smooth", [True] * len(mesh.polygons))
-		mesh.normals_split_custom_set(normal_data)
-		bpy.ops.object.mode_set(mode='OBJECT')
-
-
-		progress.step("Done, loading materials and images...")
-
 		load_mmd_images(filepath, texture_paths)
 
 		materials = create_materials()
 		for m in materials:
 			mesh.materials.append(m)
+
+		progress.step("Done, loading materials and images...")
 
 
 		# Morph
@@ -491,8 +568,6 @@ def load(context,
 		#	bmesh.ops.triangulate(bm, faces=bm.faces)
 		#	bm.to_mesh(mesh)
 		#	bm.free()  # always do this when finished
-
-
 
 
 		# deselect all
