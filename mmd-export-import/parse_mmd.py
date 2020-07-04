@@ -3,7 +3,7 @@ import array
 import bpy
 import zlib
 
-#
+# Morph flag types.
 const_morph_type_group = 0
 const_morph_type_vertex = 1
 const_morph_type_bone = 2
@@ -15,6 +15,7 @@ const_morph_type_material = 8
 const_morph_type_flip = 9
 const_morph_type_impulse = 10
 
+# Material flags.
 const_material_flag_nocull = 0x1
 const_material_flag_ground_shadow = 0x2
 const_material_flag_draw_shadow = 0x4
@@ -24,6 +25,7 @@ const_material_flag_vertex_color = 0x20
 const_material_flag_point_drawing = 0x40
 const_material_flag_line_drawing = 0x80
 
+# Bone flags.
 const_bone_flag_index_tail_position = 0x1
 const_bone_flag_rotatable = 0x2
 const_bone_flag_translatable = 0x4
@@ -37,6 +39,7 @@ const_bone_flag_local_co_coordinate = 0x800
 const_bone_flag_physic_deform = 0x1000
 const_bone_flag_external_parent_deform = 0x2000
 
+# Data types size in bytes.
 const_byte = 1
 const_sbyte = 1
 const_short = 2
@@ -45,12 +48,13 @@ const_int = 4
 const_uint = 4
 const_uint64 = 8
 const_float = 4
-
+const_flag = 1
+# Vector size in bytes.
 const_vec2 = 8
 const_vec3 = 12
 const_vec4 = 16
-const_flag = 1
 
+# Lookup tables.
 deform_lookup_table = {0: 'bdef1',
                        1: 'bdef2',
                        2: 'bdef4',
@@ -58,12 +62,6 @@ deform_lookup_table = {0: 'bdef1',
                        4: 'qdef'}
 
 
-# def read_ubyte_array(read):
-# 	return unpack(b'B', read)
-
-# def read_vertex_data(read):
-# 	return unpack(b'ffffffff', read)
-#
 def read_full_vertices_data(reader, struct_sizes, additional):
 	num_vertices = read_uint(reader)
 	vertices = []
@@ -74,24 +72,57 @@ def read_full_vertices_data(reader, struct_sizes, additional):
 	return vertices
 
 
-def read_bdef1(data):
-	return unpack(b'B', data)
+def read_bdef1(reader, struct_sizes):
+	index_size = struct_sizes['bone_index_size']
+	return [read_index(reader, index_size)]
 
 
-def read_bdef2(data):
-	return unpack(b'BBf', data)
+def read_bdef2(reader, struct_sizes):
+	index_size = struct_sizes['bone_index_size']
+	return [read_index(reader, index_size),
+	        read_index(reader, index_size),
+	        read_float(reader)]
 
 
-def read_bdef4(data):
-	return unpack(b'BBBBffff', data)
+def read_bdef4(reader, struct_sizes):
+	index_size = struct_sizes['bone_index_size']
+	return [read_index(reader, index_size),
+	        read_index(reader, index_size),
+	        read_index(reader, index_size),
+	        read_index(reader, index_size),
+	        read_float(reader),
+	        read_float(reader),
+	        read_float(reader),
+	        read_float(reader)]
 
 
-def read_sdef(data):
-	return unpack(b'BBffffffffff', data)
+def read_sdef(reader, struct_sizes):
+	index_size = struct_sizes['bone_index_size']
+	return [read_index(reader, index_size),
+	        read_index(reader, index_size),
+	        read_float(reader),
+	        read_vec3(reader),
+	        read_vec3(reader),
+	        read_vec3(reader)]
 
 
-def read_qdef(data):
-	return unpack(b'BBBBffff', data)
+def read_qdef(reader, struct_sizes):
+	index_size = struct_sizes['bone_index_size']
+	return [read_index(reader, index_size),
+	        read_index(reader, index_size),
+	        read_index(reader, index_size),
+	        read_index(reader, index_size),
+	        read_float(reader),
+	        read_float(reader),
+	        read_float(reader),
+	        read_float(reader)]
+
+
+deform_lookup_function = [read_bdef1,
+                          read_bdef2,
+                          read_bdef4,
+                          read_sdef,
+                          read_qdef]
 
 
 def read_full_vertex_data(reader, struct_sizes, additional):
@@ -103,13 +134,21 @@ def read_full_vertex_data(reader, struct_sizes, additional):
 			additional_vec.append(f)
 	# Deforming data.
 	weight_deform_type = read_ubyte(reader)
+
 	#
-	weight_data_size = struct_sizes[deform_lookup_table[weight_deform_type]]
-	weight_data = reader.read(weight_data_size)
+	deform_func = deform_lookup_function[weight_deform_type]
+	weight_data = deform_func(reader, struct_sizes)
 	edge_scale = read_float(reader)
 
 	#
-	return list(pos_normal_uv) + additional_vec + [weight_deform_type] + [weight_data] + [edge_scale]
+	return {
+		'vertex' : pos_normal_uv,
+		'additional_vec' : additional_vec,
+		'weight_deform_type' : weight_deform_type,
+		'weight_data': weight_data,
+		'edge_scale': edge_scale
+	}
+	#return list(pos_normal_uv) + additional_vec + [weight_deform_type] + [weight_data] + [edge_scale]
 
 
 def read_full_surface_data(reader, struct_size):
@@ -117,13 +156,7 @@ def read_full_surface_data(reader, struct_size):
 	surfaces = []
 	surface_index_size = struct_size['vertex_index_size']
 	for j in range(0, num_surfaces):
-		#		surface = reader.read(surface_index_size)
 		surfaces.append(read_index(reader, surface_index_size))
-	# if surface_index_size == 1:
-	# 	surfaces.append(read_ubyte(surface))
-	# if surface_index_size == 2:
-	# 	surfaces.append(read_sint(surface))
-
 	return surfaces
 
 
@@ -353,7 +386,6 @@ def read_all_display_frames(f, struct_sizes):
 
 
 def read_all_rigid(f, header):
-
 	return None
 
 
