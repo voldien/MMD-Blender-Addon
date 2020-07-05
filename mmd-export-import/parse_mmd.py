@@ -160,7 +160,7 @@ def read_full_surface_data(reader, struct_size):
 	num_surfaces = read_uint(reader)
 	surfaces = []
 	surface_index_size = struct_size['vertex_index_size']
-	for j in range(0, num_surfaces):
+	for _ in range(0, num_surfaces):
 		surfaces.append(read_index(reader, surface_index_size))
 	return surfaces
 

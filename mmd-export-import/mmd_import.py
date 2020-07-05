@@ -56,10 +56,18 @@ def load_mmd_images(dir, texture_paths):
 		textures.append(texture)
 	return textures
 
-def create_materials(filepath, texture_paths, materials):
+
+def create_materials(filepath, relpath,
+					material_libs, unique_materials, unique_material_images,
+					use_image_search, use_cycles, float_func):
 	DIR = os.path.dirname(filepath)
 	context_material_vars = set()
-	unique_materials = {}
+
+    # Don't load the same image multiple times
+	context_imagepath_map = {}
+
+	cycles_material_wrap_map = {}
+
 	unique_material_images = {}
 
 	textures = load_mmd_images(filepath, texture_paths)
@@ -67,7 +75,6 @@ def create_materials(filepath, texture_paths, materials):
 
 	context_imagepath_map = {}
 
-	bpy.ops.object.mode_set(mode='EDIT')
 	bpy.ops.object.mode_set(mode='OBJECT')
 
 	# make sure face select mode is enabled
@@ -308,7 +315,7 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 	#     me.materials.append(material)
 
 	mesh.vertices.add(len(vertices))
-	mesh.loops.add(tot_loops)
+	mesh.loops.add(len(surfaces) / 3)
 	mesh.polygons.add(len(surfaces) / 3)
 
 	# Add object the scene.
@@ -323,8 +330,6 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 	# mesh.uv_layers.new().data
 	vertices_data = []
 	normal_data = []
-
-
 
 
 	for i, v_ in enumerate(vertices):
@@ -345,6 +350,15 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 	lidx = 0
 	for i0, i1, i2 in zip(*[iter(surfaces)] * 3):
 		facesData.append([i0, i1, i2])
+
+	for f in facesData:
+		print(f)
+		vidx = f
+		nbr_vidx = len(vidx)
+		loops_vert_idx.extend(vidx)
+		faces_loop_start.append(lidx)
+		faces_loop_total.append(nbr_vidx)
+		lidx += nbr_vidx
 
 	mesh.loops.foreach_set("vertex_index", loops_vert_idx)
 	mesh.polygons.foreach_set("loop_start", faces_loop_start)
@@ -544,6 +558,11 @@ def load(context,
 			left = size - f.tell()
 			print(left)
 
+		#texture_list = load_mmd_images(filepath, texture_paths)
+
+		materials_set = create_materials(filepath, relpath, material_libs, unique_materials,
+                                   unique_material_images, use_image_search, use_cycles, float_func)
+
 		progress.step("Done, loading bone skeleton system...")
 		root,bone_objects = create_bone_system(bones)
 
@@ -560,11 +579,11 @@ def load(context,
 
 		progress.step("Done, loading geometry data..")
 
-		load_mmd_images(filepath, texture_paths)
 
-		materials = create_materials()
-		for m in materials:
-			mesh.materials.append(m)
+
+
+		# for m in materials:
+		# 	mesh.materials.append(m)
 
 		progress.step("Done, loading materials and images...")
 
