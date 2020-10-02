@@ -152,7 +152,7 @@ def create_bone_system(bones):
 	bpy.ops.object.mode_set(mode='EDIT')
 
 	for i, bone in enumerate(bones):
-		#utf8_bone_name = bone['local_name']#.encode("utf-8")
+		utf8_bone_name = bone['local_name']#.encode("utf-8")
 		mmd_flags = bone['flag']
 		utf8_bone_name = "bone" + str(i)
 		arm_bone = root.data.edit_bones.new(name=utf8_bone_name)
@@ -235,6 +235,13 @@ def create_bone_system(bones):
 	return root, bone_objects
 
 
+def create_rigidbodies(bones, rigidbodies, joints):
+	for rigidbody in rigidbodies:
+		bone_link_obj = bones[rigidbody['related_bone_index']]
+
+		#bpy.context.scene.rigidbody_world.group.objects.link(bone_link_obj)
+		pass
+
 def create_influence(bones, mesh):
 	pass
 
@@ -315,7 +322,7 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 	#     me.materials.append(material)
 
 	mesh.vertices.add(len(vertices))
-	mesh.loops.add(len(surfaces) / 3)
+	mesh.loops.add(tot_loops)
 	mesh.polygons.add(len(surfaces) / 3)
 
 	# Add object the scene.
@@ -360,15 +367,15 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 		faces_loop_total.append(nbr_vidx)
 		lidx += nbr_vidx
 
-	mesh.loops.foreach_set("vertex_index", loops_vert_idx)
-	mesh.polygons.foreach_set("loop_start", faces_loop_start)
-	mesh.polygons.foreach_set("loop_total", faces_loop_total)
+	#mesh.loops.foreach_set("vertex_index", loops_vert_idx)
+	#mesh.polygons.foreach_set("loop_start", faces_loop_start)
+	#mesh.polygons.foreach_set("loop_total", faces_loop_total)
 
 	uv = mesh.uv_textures.new()
 	uv.name = "UV"
 	blen_uvs = mesh.uv_layers[0]
 	for i, v in enumerate(vertices):
-		blen_uvs.data[i].uv = (v[6], v[7])
+		pass#blen_uvs.data[i].uv = (v[6], v[7])
 
 		# Compute all groups used.
 #		vg = obj.vertex_groups
@@ -452,9 +459,9 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 		else:
 			assert(0)
 
-	mesh.polygons.foreach_set("use_smooth", [True] * len(mesh.polygons))
-	mesh.normals_split_custom_set(normal_data)
-	bpy.ops.object.mode_set(mode='OBJECT')
+	#mesh.polygons.foreach_set("use_smooth", [True] * len(mesh.polygons))
+	#mesh.normals_split_custom_set(normal_data)
+	#bpy.ops.object.mode_set(mode='OBJECT')
 
 	return obj, mesh
 
@@ -560,14 +567,16 @@ def load(context,
 
 		#texture_list = load_mmd_images(filepath, texture_paths)
 
-		materials_set = create_materials(filepath, relpath, material_libs, unique_materials,
-                                   unique_material_images, use_image_search, use_cycles, float_func)
+		# materials_set = create_materials(filepath, relpath, material_libs, unique_materials,
+        #                            unique_material_images, use_image_search, use_cycles, float_func)
 
 		progress.step("Done, loading bone skeleton system...")
 		root,bone_objects = create_bone_system(bones)
 
 		mesh_object, mesh = create_geometry(vertices, surfaces, bone_objects, header, use_edges, None, use_material_import)
-		mesh_object.parent = root;
+		mesh_object.parent = root
+
+		create_rigidbodies(bone_objects, rigidbodies, joints)
 		#object_materials = create_materials(filepath, texture_paths, materials)
 		#root.data.materils = object_materials
 

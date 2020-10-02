@@ -17,6 +17,7 @@ if "bpy" in locals():
 	if "mmd_import" in locals():
 		importlib.reload(mmd_import)
 
+from bpy.types import Operator
 import bpy
 import typing
 from bpy.props import (
@@ -35,8 +36,7 @@ from bpy_extras.io_utils import (
 
 IOOBJOrientationHelper = orientation_helper_factory("IOOBJOrientationHelper", axis_forward='-Z', axis_up='Y')
 
-
-class ExportMMD(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
+class ExportMMD(Operator, ExportHelper, IOOBJOrientationHelper):
 	"""Export a Miku Miku Dance File"""
 	bl_idname = "export_scene.mmd"
 	bl_label = "Export MMD"
@@ -180,13 +180,35 @@ class ExportMMD(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
 		return mmd_export.save(context, **keywords)
 
 	def draw(self, context):
-		pass
-# layout = self.layout
+		layout = self.layout
 
-# row = layout.row(align=True)
+		row = layout.row(align=True)
+		row.prop(self, "use_smooth_groups")
+		row.prop(self, "use_edges")
+
+		box = layout.box()
+		row = box.row()
+		row.prop(self, "split_mode", expand=True)
+
+		row = box.row()
+		if self.split_mode == 'ON':
+			row.label(text="Split by:")
+			row.prop(self, "use_split_objects")
+			row.prop(self, "use_split_groups")
+		else:
+			row.prop(self, "use_groups_as_vgroups")
+
+		row = layout.split(percentage=0.67)
+		row.prop(self, "global_clamp_size")
+		layout.prop(self, "axis_forward")
+		layout.prop(self, "axis_up")
+
+		layout.prop(self, "use_image_search")
+		layout.prop(self, "use_material_import")
+		layout.prop(self, "use_joint_import")
 
 
-class ImportMMD(bpy.types.Operator, ImportHelper, IOOBJOrientationHelper):
+class ImportMMD(Operator, ImportHelper, IOOBJOrientationHelper):
 	"""Load a Miku Miku Dance File"""
 	bl_idname = "import_scene.mmd"
 	bl_label = "Import MMD"
@@ -319,7 +341,6 @@ classes = (
 def menu_func_import(self, context):
 	self.layout.operator(ImportMMD.bl_idname, text="Miku Miku Dance MMD (.pmx/.pmd)")
 
-
 def menu_func_export(self, context):
 	self.layout.operator(ExportMMD.bl_idname, text="Miku Miku Dance MMD (.pmx/.pmd)")
 
@@ -344,11 +365,9 @@ def unregister():
 	else:
 		bpy.types.INFO_MT_file_import.remove(menu_func_import)
 		bpy.types.INFO_MT_mesh_add.remove(menu_func_import)
-	# bpy.app.handlers.load_post.remove(register_driver)
 
 	for cls in classes:
 		bpy.utils.unregister_module(cls)
-#
-#
-# if __name__ == "__main__":
-# 	register()
+
+if __name__ == "__main__":
+	register()

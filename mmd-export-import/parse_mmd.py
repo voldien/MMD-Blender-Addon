@@ -177,7 +177,7 @@ def read_all_texture_paths(reader, struct_size):
 def read_all_material(reader, struct_size):
 	num_materials = read_int(reader)
 	materials = []
-	for a in range(0, num_materials):
+	for _ in range(0, num_materials):
 		_, local_name = read_string_ubyte(reader)
 		_, universal_name = read_string_ubyte(reader)
 		diffuse_color = read_vec4(reader)
@@ -228,7 +228,7 @@ def read_all_material(reader, struct_size):
 def read_all_bones(reader, struct_size):
 	num_bones = read_uint(reader)
 	bones = []
-	for a in range(0, num_bones):
+	for _ in range(0, num_bones):
 		_, local_name = read_string_ubyte(reader, struct_size['text_encoding'])
 		_, universal_name = read_string_ubyte(reader, struct_size['text_encoding'])
 
