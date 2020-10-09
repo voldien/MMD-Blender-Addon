@@ -105,15 +105,6 @@ def split_mesh(verts_loc, faces, unique_materials, filepath, SPLIT_OB_OR_GROUP):
 	pass
 
 
-def validate_version_signature(sig, version):
-	magic_signature = [0x50, 0x4D, 0x58, 0x20]
-	if version > 2.0:
-		pass
-	for i, l in enumerate(sig):
-		if magic_signature[i] != l:
-			return False
-	return True
-
 # def new_bone(obj, bone_name):
 #     """ Adds a new bone to the given armature object.
 #         Returns the resulting bone's name.
@@ -253,7 +244,7 @@ def process_header(f):
 	header['version'] = float(parse_mmd.read_float(f))
 
 	# Validate the file type.
-	if validate_version_signature(header['signature'], header['version']):
+	if mmd_util.validate_version_signature(header['signature'], header['version']):
 		print("Invalid")
 	if header['version'] == 2.0:
 		pass
@@ -479,12 +470,8 @@ def load(context,
          filepath,
          *,
          global_clamp_size=0.0,
-         use_smooth_groups=True,
          use_edges=True,
-         use_split_objects=True,
-         use_split_groups=True,
          use_image_search=True,
-         use_groups_as_vgroups=False,
          use_cycles=True,
          relpath=None,
          use_material_import,
@@ -499,8 +486,6 @@ def load(context,
 		if global_matrix is None:
 			global_matrix = mathutils.Matrix()
 
-		if use_split_objects or use_split_groups:
-			use_groups_as_vgroups = False
 		time_main = time.time()
 
 		verts_loc = []

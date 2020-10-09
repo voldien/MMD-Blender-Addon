@@ -3,6 +3,14 @@ import array
 import bpy
 import zlib
 
+data_section_names = ['Vertex', 'Face', 'Texture', 'Material',
+                      'Bone', 'Morph', 'Frame', 'Rigidbody', 'Joint', 'Softbody']
+index_attribute_names = ['text_encoding', 'additional_vec4_count', 'vertex_index_size', 'texture_index_size',
+                         'material_index_size',
+                         'bone_index_size', 'morph_index_size', 'rigid_index_size']
+
+magic_signature = [0x50, 0x4D, 0x58, 0x20]
+
 # Morph flag types.
 const_morph_type_group = 0
 const_morph_type_vertex = 1

@@ -2,7 +2,7 @@ bl_info = {
 	"name": "MMD Import - Export",
 	"author": "Valdemar Lindberg",
 	"version": (0, 1, 0),
-	"blender": (2, 79, 0),
+	"blender": (2, 80, 0),
 	"location": "File > Import-Export",
 	"description": "Loading MMD files.",
 	"warning": "",
@@ -37,7 +37,7 @@ from bpy_extras.io_utils import (
 IOOBJOrientationHelper = orientation_helper_factory("IOOBJOrientationHelper", axis_forward='-Z', axis_up='Y')
 
 class ExportMMD(Operator, ExportHelper, IOOBJOrientationHelper):
-	"""Export a Miku Miku Dance File"""
+	"""Export a Miku Miku Dance File."""
 	bl_idname = "export_scene.mmd"
 	bl_label = "Export MMD"
 	bl_options = {'PRESET'}
@@ -56,7 +56,7 @@ class ExportMMD(Operator, ExportHelper, IOOBJOrientationHelper):
 	)
 	use_animation = BoolProperty(
 		name="Animation",
-		description="Write out an OBJ for each frame",
+		description="Save animation associated for each exported object.",
 		default=False,
 	)
 
@@ -83,12 +83,6 @@ class ExportMMD(Operator, ExportHelper, IOOBJOrientationHelper):
 		description="Write sharp edges as smooth groups",
 		default=False,
 	)
-	use_smooth_groups_bitflags = BoolProperty(
-		name="Bitflag Smooth Groups",
-		description="Same as 'Smooth Groups', but generate smooth groups IDs as bitflags "
-		            "(produces at most 32 different smooth groups, usually much less)",
-		default=False,
-	)
 	use_normals = BoolProperty(
 		name="Write Normals",
 		description="Export one normal per vertex and per face, to represent flat faces and sharp edges",
@@ -98,44 +92,6 @@ class ExportMMD(Operator, ExportHelper, IOOBJOrientationHelper):
 		name="Include UVs",
 		description="Write out the active UV coordinates",
 		default=True,
-	)
-	use_materials = BoolProperty(
-		name="Write Materials",
-		description="Write out the MTL file",
-		default=True,
-	)
-	use_triangles = BoolProperty(
-		name="Triangulate Faces",
-		description="Convert all faces to triangles",
-		default=False,
-	)
-	use_nurbs = BoolProperty(
-		name="Write Nurbs",
-		description="Write nurbs curves as OBJ nurbs rather than "
-		            "converting to geometry",
-		default=False,
-	)
-	use_vertex_groups = BoolProperty(
-		name="Polygroups",
-		description="",
-		default=False,
-	)
-
-	# grouping group
-	use_blen_objects = BoolProperty(
-		name="Objects as OBJ Objects",
-		description="",
-		default=True,
-	)
-	group_by_object = BoolProperty(
-		name="Objects as OBJ Groups ",
-		description="",
-		default=False,
-	)
-	group_by_material = BoolProperty(
-		name="Material Groups",
-		description="",
-		default=False,
 	)
 	keep_vertex_order = BoolProperty(
 		name="Keep Vertex Order",
@@ -147,6 +103,21 @@ class ExportMMD(Operator, ExportHelper, IOOBJOrientationHelper):
 		name="Scale",
 		min=0.01, max=1000.0,
 		default=1.0,
+	)
+	author = StringProperty(
+		name="Author",
+		description="",
+		default=""
+	)
+	comment = StringProperty(
+		name="Comment",
+		description="",
+		default=""
+	)
+	character_name = StringProperty(
+		name="Character Name",
+		description="",
+		default=""
 	)
 
 	path_mode = path_reference_mode
@@ -170,6 +141,7 @@ class ExportMMD(Operator, ExportHelper, IOOBJOrientationHelper):
 		                                    "check_existing",
 		                                    "filter_glob",
 		                                    ))
+		
 
 		global_matrix = (Matrix.Scale(self.global_scale, 4) *
 		                 axis_conversion(to_forward=self.axis_forward,
@@ -190,14 +162,6 @@ class ExportMMD(Operator, ExportHelper, IOOBJOrientationHelper):
 		row = box.row()
 		row.prop(self, "split_mode", expand=True)
 
-		row = box.row()
-		if self.split_mode == 'ON':
-			row.label(text="Split by:")
-			row.prop(self, "use_split_objects")
-			row.prop(self, "use_split_groups")
-		else:
-			row.prop(self, "use_groups_as_vgroups")
-
 		row = layout.split(percentage=0.67)
 		row.prop(self, "global_clamp_size")
 		layout.prop(self, "axis_forward")
@@ -206,10 +170,13 @@ class ExportMMD(Operator, ExportHelper, IOOBJOrientationHelper):
 		layout.prop(self, "use_image_search")
 		layout.prop(self, "use_material_import")
 		layout.prop(self, "use_joint_import")
+		layout.prop(self, "author")
+		layout.prop(self, "comment")
+		layout.prop(self, "character_name")
 
 
 class ImportMMD(Operator, ImportHelper, IOOBJOrientationHelper):
-	"""Load a Miku Miku Dance File"""
+	"""Import a Miku Miku Dance File."""
 	bl_idname = "import_scene.mmd"
 	bl_label = "Import MMD"
 	bl_options = {'PRESET', 'UNDO'}
@@ -220,33 +187,6 @@ class ImportMMD(Operator, ImportHelper, IOOBJOrientationHelper):
 		options={'HIDDEN'},
 	)
 
-	use_edges = BoolProperty(
-		name="Lines",
-		description="Import lines and faces with 2 verts as edge",
-		default=True,
-	)
-	use_smooth_groups = BoolProperty(
-		name="Smooth Groups",
-		description="Surround smooth groups by sharp edges",
-		default=True,
-	)
-
-	use_split_objects = BoolProperty(
-		name="Object",
-		description="Import OBJ Objects into Blender Objects",
-		default=True,
-	)
-	use_split_groups = BoolProperty(
-		name="Group",
-		description="Import OBJ Groups into Blender Objects",
-		default=True,
-	)
-
-	use_groups_as_vgroups = BoolProperty(
-		name="Poly Groups",
-		description="Import OBJ groups as vertex groups",
-		default=False,
-	)
 
 	use_image_search = BoolProperty(
 		name="Image Search",
@@ -255,12 +195,6 @@ class ImportMMD(Operator, ImportHelper, IOOBJOrientationHelper):
 		default=True,
 	)
 
-	split_mode = EnumProperty(
-		name="Split",
-		items=(('ON', "Split", "Split geometry, omits unused verts"),
-		       ('OFF', "Keep Vert Order", "Keep vertex order from file"),
-		       ),
-	)
 	use_material_import = BoolProperty(name="Import Material",
 	                                   description="",
 	                                   default=True)
@@ -314,14 +248,6 @@ class ImportMMD(Operator, ImportHelper, IOOBJOrientationHelper):
 		box = layout.box()
 		row = box.row()
 		row.prop(self, "split_mode", expand=True)
-
-		row = box.row()
-		if self.split_mode == 'ON':
-			row.label(text="Split by:")
-			row.prop(self, "use_split_objects")
-			row.prop(self, "use_split_groups")
-		else:
-			row.prop(self, "use_groups_as_vgroups")
 
 		row = layout.split(percentage=0.67)
 		row.prop(self, "global_clamp_size")

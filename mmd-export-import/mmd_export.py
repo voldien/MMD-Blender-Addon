@@ -1,14 +1,14 @@
 if "bpy" in locals():
 	import importlib
-
 	if "parser_mmd" in locals():
 		importlib.reload(parser_mmd)
-#    if "fbx_utils" in locals():
-#       importlib.reload(fbx_utils)
+	if "parser_mmd" in locals():
+		importlib.reload(mmd_util)
+
 import bpy
 from mathutils import Matrix, Euler, Vector
 
-#from . import parse_mmd
+from . import parse_mmd, mmd_util
 
 import array
 import os
@@ -22,9 +22,47 @@ import mathutils
 from progress_report import ProgressReport
 
 
+def create_header(author, comment, character_name, version, section_data):
+	header = {}
+
+	#
+	header['signature'] = parse_mmd.magic_signature
+	header['version'] = 2.0
+
+	header['globals_count'] = parse_mmd.read_ubyte(f)
+
+	data_section_names = ['Vertex', 'Face', 'Texture', 'Material',
+                       'Bone', 'Morph', 'Frame', 'Rigidbody', 'Joint', 'Softbody']
+	index_attribute_names = ['text_encoding', 'additional_vec4_count', 'vertex_index_size', 'texture_index_size',
+	                         'material_index_size',
+	                         'bone_index_size', 'morph_index_size', 'rigid_index_size']
+	nindex = 0
+	for n in index_attribute_names:
+		# Continue grabbing index data only if additional exits.
+		if nindex < header['globals_count']:
+			header[n] = parse_mmd.read_ubyte(f)
+			nindex = nindex + 1
+	# Handle unused global index.
+	if nindex < header['globals_count']:
+		f.seek(header['globals_count'] - nindex)
+
+	# Load name and comments.
+	encoding = header['text_encoding']
+
+	_, header['local_character_name'] = parse_mmd.read_string_ubyte(f, encoding)
+	_, header['universal_character_name_size'] = parse_mmd.read_string_ubyte(
+		f, encoding)
+	_, header['comment_local'] = parse_mmd.read_string_ubyte(f, encoding)
+	_, header['comment_universal'] = parse_mmd.read_string_ubyte(f, encoding)
+
+	return header
+
 def save(context,
          filepath,
          *,
+		 author,
+		 comment,
+         character_name,
          use_triangles=False,
          use_edges=True,
          use_normals=False,
@@ -34,12 +72,8 @@ def save(context,
          use_materials=True,
          use_mesh_modifiers=True,
          use_mesh_modifiers_render=False,
-         use_blen_objects=True,
-         group_by_object=False,
-         group_by_material=False,
          keep_vertex_order=False,
          use_vertex_groups=False,
-         use_nurbs=True,
          use_selection=True,
          use_animation=False,
          global_matrix=None,
@@ -54,54 +88,30 @@ def save(context,
 		if bpy.ops.object.mode_set.poll():
 			bpy.ops.object.mode_set(mode='OBJECT')
 
-		orig_frame = scene.frame_current
+		# Extract the vertices of object.
 
-		# Export an animation?
-		if EXPORT_ANIMATION:
-			scene_frames = range(scene.frame_start, scene.frame_end + 1)  # Up to and including the end frame.
-		else:
-			scene_frames = [orig_frame]  # Dont export an animation.
+		# Extract the triangles indices.
+		# Extract and convert materials.
+		# Extract bones
 
-		# Loop through all frames in the scene and export.
-		progress.enter_substeps(len(scene_frames))
-		for frame in scene_frames:
-			if EXPORT_ANIMATION:  # Add frame to the filepath.
-				context_name[2] = '_%.6d' % frame
 
-			scene.frame_set(frame, 0.0)
-			if EXPORT_SEL_ONLY:
-				objects = context.selected_objects
-			else:
-				objects = scene.objects
+		header = create_header(author, comment,"", 2.0)
 
-			full_path = ''.join(context_name)
+		#Final step. Write everything to file.
+		# TODO write header
 
-			# erm... bit of a problem here, this can overwrite files when exporting frames. not too bad.
-			# EXPORT THE FILE.
-			progress.enter_substeps(1)
-			write_file(full_path, objects, scene,
-			           EXPORT_TRI,
-			           EXPORT_EDGES,
-			           EXPORT_SMOOTH_GROUPS,
-			           EXPORT_SMOOTH_GROUPS_BITFLAGS,
-			           EXPORT_NORMALS,
-			           EXPORT_UV,
-			           EXPORT_MTL,
-			           EXPORT_APPLY_MODIFIERS,
-			           EXPORT_APPLY_MODIFIERS_RENDER,
-			           EXPORT_BLEN_OBS,
-			           EXPORT_GROUP_BY_OB,
-			           EXPORT_GROUP_BY_MAT,
-			           EXPORT_KEEP_VERT_ORDER,
-			           EXPORT_POLYGROUPS,
-			           EXPORT_CURVE_AS_NURBS,
-			           EXPORT_GLOBAL_MATRIX,
-			           EXPORT_PATH_MODE,
-			           progress,
-			           )
-			progress.leave_substeps()
+		# TODO Write vertices
+		# TODO Write face indices (surface)
+		# TODO Write texture paths
+		# TODO Write Materials
+		# TODO Write bones
+		# TODO Write morphs
+		# TODO Write animations
+		# TODO Write rigidbodies
+		# TODO Write Joints
+		# TODO Write softbodies
 
-		scene.frame_set(orig_frame, 0.0)
+
 		progress.leave_substeps()
 
 	return {'FINISHED'}
