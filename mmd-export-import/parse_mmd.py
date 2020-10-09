@@ -1,4 +1,4 @@
-from struct import unpack
+from struct import unpack, pack
 import array
 import bpy
 import zlib
@@ -74,7 +74,6 @@ deform_lookup_table = {0: 'bdef1',
                        3: 'sdef',
                        4: 'qdef'}
 
-
 def read_full_vertices_data(reader, struct_sizes, additional):
 	num_vertices = read_uint(reader)
 	vertices = []
@@ -83,6 +82,19 @@ def read_full_vertices_data(reader, struct_sizes, additional):
 		vertex = read_full_vertex_data(reader, struct_sizes, additional)
 		vertices.append(vertex)
 	return vertices
+
+def write_full_vertices_data(writer, struct_sizes, vertices, additional):
+	num_vertices = len(vertices)
+
+	for i in range(0, num_vertices):
+		pass
+		# {
+		# 	'vertex': pos_normal_uv,
+		# 	'additional_vec': additional_vec,
+		# 	'weight_deform_type': weight_deform_type,
+		# 	'weight_data': weight_data,
+		# 	'edge_scale': edge_scale
+		# }
 
 
 def read_bdef1(reader, struct_sizes):
@@ -593,6 +605,52 @@ def read_string_ubyte(reader, encoding=0):
 		data = data.decode("utf-8", "strict")
 	return size, data
 
+
+def write_index(reader, size_type, index):
+	pass
+
+
+def write_uint(write, v):
+	return write.write(pack(b'<I', v))
+
+
+def write_int(write, v):
+	return write.write(pack(b'<i', v))
+
+
+def write_sint(write, v):
+	pass
+
+
+def write_ushort(write, v):
+	pass
+
+def write_uint64(write, v):
+	pass
+
+
+def write_ubyte(write, v):
+	pass
+
+
+def write_float(write, v):
+	pass
+
+
+def write_vec3(write, v):
+	pass
+
+def write_vec4(write, v):
+	return pack(b'ffff', v)
+
+def write_string_ubyte(writer, v, encoding=0):
+	size = len(v)
+	data = v
+	if encoding == 0:
+		data = data.decode("utf-16", "strict")
+	elif encoding == 1:
+		data = data.decode("utf-8", "strict")
+	return writer.write(data)
 
 def unpack_array(read, array_type, array_stride, array_byteswap):
 	length = read_uint(read)

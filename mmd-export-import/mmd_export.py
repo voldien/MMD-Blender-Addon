@@ -74,9 +74,9 @@ def save(context,
          use_mesh_modifiers_render=False,
          keep_vertex_order=False,
          use_vertex_groups=False,
-         use_selection=True,
          use_animation=False,
          global_matrix=None,
+         use_image_search=False,
          path_mode='AUTO'):
 	with ProgressReport(context.window_manager) as progress:
 		base_name, ext = os.path.splitext(filepath)
@@ -88,14 +88,30 @@ def save(context,
 		if bpy.ops.object.mode_set.poll():
 			bpy.ops.object.mode_set(mode='OBJECT')
 
+		# 
+		selected_boject = bpy.context.selected_objects[0]
+		mesh = selected_boject.data
 		# Extract the vertices of object.
+		mesh.has_custom_normals
+		mesh.animation_data
+		uv_layer = mesh.uv_layers.active.data
+
+
+		for poly in mesh.polygons:
+			print("Polygon index: %d, length: %d" % (poly.index, poly.loop_total))
+
+			# range is used here to show how the polygons reference loops,
+			# for convenience 'poly.loop_indices' can be used instead.
+			for loop_index in range(poly.loop_start, poly.loop_start + poly.loop_total):
+				print("    Vertex: %d" % mesh.loops[loop_index].vertex_index)
+				print("    UV: %r" % uv_layer[loop_index].uv)
 
 		# Extract the triangles indices.
 		# Extract and convert materials.
 		# Extract bones
 
 
-		header = create_header(author, comment,"", 2.0)
+		#header = create_header(author, comment,"", 2.0, {})
 
 		#Final step. Write everything to file.
 		# TODO write header

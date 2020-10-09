@@ -48,12 +48,6 @@ class ExportMMD(Operator, ExportHelper, IOOBJOrientationHelper):
 		options={'HIDDEN'},
 	)
 
-	# context group
-	use_selection = BoolProperty(
-		name="Selection Only",
-		description="Export selected objects only",
-		default=False,
-	)
 	use_animation = BoolProperty(
 		name="Animation",
 		description="Save animation associated for each exported object.",
@@ -276,6 +270,7 @@ def register():
 	for cls in classes:
 		bpy.utils.register_class(cls)
 
+	# Create menu for export and import
 	if bpy.app.version >= (2, 80, 0):
 		bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
 		bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
@@ -285,6 +280,8 @@ def register():
 
 
 def unregister():
+
+	# Delete menu for export and import
 	if bpy.app.version >= (2, 80, 0):
 		bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
 		bpy.types.VIEW3D_MT_image_add.remove(menu_func_import)
