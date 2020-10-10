@@ -82,6 +82,9 @@ def save(context,
 		base_name, ext = os.path.splitext(filepath)
 		context_name = [base_name, '', '', ext]  # Base name, scene name, frame number, extension
 
+		has_uv = False
+		has_skinned = False
+
 		scene = context.scene
 
 		# Exit edit mode before exporting, so current object states are exported properly.
@@ -90,12 +93,21 @@ def save(context,
 
 		# 
 		selected_boject = bpy.context.selected_objects[0]
+		armature = selected_boject.data
 		mesh = selected_boject.data
+		bones = armature.bones
+
 		# Extract the vertices of object.
 		mesh.has_custom_normals
 		mesh.animation_data
-		uv_layer = mesh.uv_layers.active.data
-
+		uv_active = mesh.uv_layers.active
+		uv_layer = None
+		skinned_vertices = mesh.skin_vertices
+		if skinned_vertices:
+			has_skinned = True
+			print("Number of skinned vertices.	%d\n", len(skinned_vertices))
+		if uv_active:
+			uv_layer = uv_active.data
 
 		for poly in mesh.polygons:
 			print("Polygon index: %d, length: %d" % (poly.index, poly.loop_total))
@@ -104,7 +116,7 @@ def save(context,
 			# for convenience 'poly.loop_indices' can be used instead.
 			for loop_index in range(poly.loop_start, poly.loop_start + poly.loop_total):
 				print("    Vertex: %d" % mesh.loops[loop_index].vertex_index)
-				print("    UV: %r" % uv_layer[loop_index].uv)
+				#print("    UV: %r" % uv_layer[loop_index].uv)
 
 		# Extract the triangles indices.
 		# Extract and convert materials.

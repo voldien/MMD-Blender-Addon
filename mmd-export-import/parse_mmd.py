@@ -606,42 +606,37 @@ def read_string_ubyte(reader, encoding=0):
 	return size, data
 
 
-def write_index(reader, size_type, index):
-	pass
-
+def write_index(writer, size_type, index):
+	size_hash_lookup = {1: write_ubyte, 2: write_ushort, 4: write_uint}
+	lookup_func = size_hash_lookup[size_type]
+	return lookup_func(writer, index)
 
 def write_uint(write, v):
 	return write.write(pack(b'<I', v))
 
-
 def write_int(write, v):
 	return write.write(pack(b'<i', v))
 
+def write_sint(writer, v):
+	return writer.write(pack(b'H', v))
 
-def write_sint(write, v):
-	pass
+def write_ushort(writer, v):
+	return writer.write(pack(b'h', v))
 
+def write_uint64(writer, v):
+	return writer.write(pack(b'<Q', v))
 
-def write_ushort(write, v):
-	pass
+def write_ubyte(writer, v):
+	return writer.write(pack(b'B', v))
 
-def write_uint64(write, v):
-	pass
+def write_float(writer, v):
+	return writer.write(pack(b'f', v))
 
+def write_vec3(writer, v):
+	return writer.write(pack(b'fff', v))
 
-def write_ubyte(write, v):
-	pass
-
-
-def write_float(write, v):
-	pass
-
-
-def write_vec3(write, v):
-	pass
-
-def write_vec4(write, v):
-	return pack(b'ffff', v)
+def write_vec4(writer, v):
+	return writer.write(pack(b'ffff', v))
 
 def write_string_ubyte(writer, v, encoding=0):
 	size = len(v)
