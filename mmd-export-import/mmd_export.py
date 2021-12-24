@@ -32,10 +32,10 @@ def create_header(author, comment, character_name, version, section_data):
 	header['globals_count'] = parse_mmd.read_ubyte(f)
 
 	data_section_names = ['Vertex', 'Face', 'Texture', 'Material',
-                       'Bone', 'Morph', 'Frame', 'Rigidbody', 'Joint', 'Softbody']
+						  'Bone', 'Morph', 'Frame', 'Rigidbody', 'Joint', 'Softbody']
 	index_attribute_names = ['text_encoding', 'additional_vec4_count', 'vertex_index_size', 'texture_index_size',
-	                         'material_index_size',
-	                         'bone_index_size', 'morph_index_size', 'rigid_index_size']
+							 'material_index_size',
+							 'bone_index_size', 'morph_index_size', 'rigid_index_size']
 	nindex = 0
 	for n in index_attribute_names:
 		# Continue grabbing index data only if additional exits.
@@ -49,7 +49,8 @@ def create_header(author, comment, character_name, version, section_data):
 	# Load name and comments.
 	encoding = header['text_encoding']
 
-	_, header['local_character_name'] = parse_mmd.read_string_ubyte(f, encoding)
+	_, header['local_character_name'] = parse_mmd.read_string_ubyte(
+		f, encoding)
 	_, header['universal_character_name_size'] = parse_mmd.read_string_ubyte(
 		f, encoding)
 	_, header['comment_local'] = parse_mmd.read_string_ubyte(f, encoding)
@@ -57,30 +58,32 @@ def create_header(author, comment, character_name, version, section_data):
 
 	return header
 
+
 def save(context,
-         filepath,
-         *,
+		 filepath,
+		 *,
 		 author,
 		 comment,
-         character_name,
-         use_triangles=False,
-         use_edges=True,
-         use_normals=False,
-         use_smooth_groups=False,
-         use_smooth_groups_bitflags=False,
-         use_uvs=True,
-         use_materials=True,
-         use_mesh_modifiers=True,
-         use_mesh_modifiers_render=False,
-         keep_vertex_order=False,
-         use_vertex_groups=False,
-         use_animation=False,
-         global_matrix=None,
-         use_image_search=False,
-         path_mode='AUTO'):
+		 character_name,
+		 use_triangles=False,
+		 use_edges=True,
+		 use_normals=False,
+		 use_smooth_groups=False,
+		 use_smooth_groups_bitflags=False,
+		 use_uvs=True,
+		 use_materials=True,
+		 use_mesh_modifiers=True,
+		 use_mesh_modifiers_render=False,
+		 keep_vertex_order=False,
+		 use_vertex_groups=False,
+		 use_animation=False,
+		 global_matrix=None,
+		 use_image_search=False,
+		 path_mode='AUTO'):
 	with ProgressReport(context.window_manager) as progress:
 		base_name, ext = os.path.splitext(filepath)
-		context_name = [base_name, '', '', ext]  # Base name, scene name, frame number, extension
+		# Base name, scene name, frame number, extension
+		context_name = [base_name, '', '', ext]
 
 		has_uv = False
 		has_skinned = False
@@ -91,7 +94,7 @@ def save(context,
 		if bpy.ops.object.mode_set.poll():
 			bpy.ops.object.mode_set(mode='OBJECT')
 
-		# 
+		#
 		selected_boject = bpy.context.selected_objects[0]
 		armature = selected_boject.data
 		mesh = selected_boject.data
@@ -110,7 +113,8 @@ def save(context,
 			uv_layer = uv_active.data
 
 		for poly in mesh.polygons:
-			print("Polygon index: %d, length: %d" % (poly.index, poly.loop_total))
+			print("Polygon index: %d, length: %d" %
+				  (poly.index, poly.loop_total))
 
 			# range is used here to show how the polygons reference loops,
 			# for convenience 'poly.loop_indices' can be used instead.
@@ -122,10 +126,9 @@ def save(context,
 		# Extract and convert materials.
 		# Extract bones
 
-
 		#header = create_header(author, comment,"", 2.0, {})
 
-		#Final step. Write everything to file.
+		# Final step. Write everything to file.
 		# TODO write header
 
 		# TODO Write vertices
@@ -138,7 +141,6 @@ def save(context,
 		# TODO Write rigidbodies
 		# TODO Write Joints
 		# TODO Write softbodies
-
 
 		progress.leave_substeps()
 

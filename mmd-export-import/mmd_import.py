@@ -34,16 +34,19 @@ def image_load(context_imagepath_map, line, DIR, recursive, relpath):
 		imagepath = os.fsdecode(b" ".join(filepath_parts[i:]))
 		image = context_imagepath_map.get(imagepath, ...)
 		if image is ...:
-			image = load_image(imagepath, DIR, recursive=recursive, relpath=relpath)
+			image = load_image(
+				imagepath, DIR, recursive=recursive, relpath=relpath)
 			if image is None and "_" in imagepath:
-				image = load_image(imagepath.replace("_", " "), DIR, recursive=recursive, relpath=relpath)
+				image = load_image(imagepath.replace(
+					"_", " "), DIR, recursive=recursive, relpath=relpath)
 			if image is not None:
 				context_imagepath_map[imagepath] = image
 				break
 
 	if image is None:
 		imagepath = os.fsdecode(filepath_parts[-1])
-		image = load_image(imagepath, DIR, recursive=recursive, place_holder=True, relpath=relpath)
+		image = load_image(imagepath, DIR, recursive=recursive,
+						   place_holder=True, relpath=relpath)
 		context_imagepath_map[imagepath] = image
 
 	return image
@@ -58,12 +61,12 @@ def load_mmd_images(dir, texture_paths):
 
 
 def create_materials(filepath, relpath,
-					material_libs, unique_materials, unique_material_images,
-					use_image_search, use_cycles, float_func):
+					 material_libs, unique_materials, unique_material_images,
+					 use_image_search, use_cycles, float_func):
 	DIR = os.path.dirname(filepath)
 	context_material_vars = set()
 
-    # Don't load the same image multiple times
+# Don't load the same image multiple times
 	context_imagepath_map = {}
 
 	cycles_material_wrap_map = {}
@@ -71,7 +74,7 @@ def create_materials(filepath, relpath,
 	unique_material_images = {}
 
 	textures = load_mmd_images(filepath, texture_paths)
-	#bpy.data.materials.new(name="MaterialName")
+	# bpy.data.materials.new(name="MaterialName")
 
 	context_imagepath_map = {}
 
@@ -83,23 +86,26 @@ def create_materials(filepath, relpath,
 	# Create new materials
 	for m in materials:
 		name = m['local_name']
-		ma = unique_materials[name] = bpy.data.materials.new(name.decode('utf-8', "replace"))
+		ma = unique_materials[name] = bpy.data.materials.new(
+			name.decode('utf-8', "replace"))
 		unique_material_images[name] = None
-		if True: #use_cycles
+		if True:  # use_cycles
 			from modules import cycles_shader_compat
 			ma_wrap = cycles_shader_compat.CyclesShaderWrapper(ma)
 
-
 	for name in unique_materials:  # .keys()
 		if name is not None:
-			ma = unique_materials[name] = bpy.data.materials.new(name.decode('utf-8', "replace"))
-			unique_material_images[name] = None  # assign None to all material images to start with, add to later.
+			ma = unique_materials[name] = bpy.data.materials.new(
+				name.decode('utf-8', "replace"))
+			# assign None to all material images to start with, add to later.
+			unique_material_images[name] = None
 			if use_cycles:
 				from modules import cycles_shader_compat
 				ma_wrap = cycles_shader_compat.CyclesShaderWrapper(ma)
 				cycles_material_wrap_map[ma] = ma_wrap
 
 	return unique_materials
+
 
 def split_mesh(verts_loc, faces, unique_materials, filepath, SPLIT_OB_OR_GROUP):
 	pass
@@ -126,11 +132,12 @@ def create_bone_system(bones):
 	bone_internal = {}
 
 	#root = bpy.data.objects.new("")
-	arm_data = bpy.data.armatures.new(name="")# bpy.data.objects.new(bones[0].['local_name'], None)  # parent_type='BONE'
+	# bpy.data.objects.new(bones[0].['local_name'], None)  # parent_type='BONE'
+	arm_data = bpy.data.armatures.new(name="")
 	root = bpy.data.objects.new(name="Root", object_data=arm_data)
 
-	#view_layer.active_layer_collection.collection.objects.link(amature)
-	#amature.select_set(True)
+	# view_layer.active_layer_collection.collection.objects.link(amature)
+	# amature.select_set(True)
 
 	# instance in scene
 	obj_base = bpy.context.scene.objects.link(root)
@@ -143,7 +150,7 @@ def create_bone_system(bones):
 	bpy.ops.object.mode_set(mode='EDIT')
 
 	for i, bone in enumerate(bones):
-		utf8_bone_name = bone['local_name']#.encode("utf-8")
+		utf8_bone_name = bone['local_name']  # .encode("utf-8")
 		mmd_flags = bone['flag']
 		utf8_bone_name = "bone" + str(i)
 		arm_bone = root.data.edit_bones.new(name=utf8_bone_name)
@@ -154,9 +161,9 @@ def create_bone_system(bones):
 			arm_bone.use_inherit_rotation = False
 		else:
 			arm_bone.use_inherit_rotation = True
-		#if mmd_flags & parse_mmd.const_bone_flag_inherit_translation == 0:
+		# if mmd_flags & parse_mmd.const_bone_flag_inherit_translation == 0:
 		#	arm_bone.use_inherit_rotation = False
-		#else:
+		# else:
 		#	arm_bone.use_inherit_rotation = True
 		if mmd_flags & parse_mmd.const_bone_flag_local_co_coordinate:
 			arm_bone.use_local_location = True
@@ -188,7 +195,7 @@ def create_bone_system(bones):
 				arm_bone.tail = bones[tail_index]['position']
 			else:
 				arm_bone.use_connect = True
-				arm_bone.tail = (0,0,0)
+				arm_bone.tail = (0, 0, 0)
 		# if "X_dir" in bone.keys():
 		# 	arm_bone.translate(bone['X_dir'])
 		# 	arm_bone.translate(bone['Z_dir'])
@@ -214,11 +221,10 @@ def create_bone_system(bones):
 			chain_count = bone['link_count']
 
 			pose_bone = root.pose.bones[i]
-			ik  = pose_bone.constraints.new('IK')
+			ik = pose_bone.constraints.new('IK')
 			ik.target = root
 			ik.subtarget = root.pose.bones[target_index].name
 			ik.chain_count = chain_count
-
 
 	bpy.ops.object.mode_set(mode='OBJECT')
 	root.hide = is_hidden
@@ -230,11 +236,13 @@ def create_rigidbodies(bones, rigidbodies, joints):
 	for rigidbody in rigidbodies:
 		bone_link_obj = bones[rigidbody['related_bone_index']]
 
-		#bpy.context.scene.rigidbody_world.group.objects.link(bone_link_obj)
+		# bpy.context.scene.rigidbody_world.group.objects.link(bone_link_obj)
 		pass
+
 
 def create_influence(bones, mesh):
 	pass
+
 
 def process_header(f):
 	header = {}
@@ -251,10 +259,11 @@ def process_header(f):
 
 	header['globals_count'] = parse_mmd.read_ubyte(f)
 
-	data_section_names = ['Vertex', 'Face', 'Texture', 'Material', 'Bone', 'Morph', 'Frame', 'Rigidbody', 'Joint', 'Softbody']
+	data_section_names = ['Vertex', 'Face', 'Texture', 'Material',
+						  'Bone', 'Morph', 'Frame', 'Rigidbody', 'Joint', 'Softbody']
 	index_attribute_names = ['text_encoding', 'additional_vec4_count', 'vertex_index_size', 'texture_index_size',
-	                         'material_index_size',
-	                         'bone_index_size', 'morph_index_size', 'rigid_index_size']
+							 'material_index_size',
+							 'bone_index_size', 'morph_index_size', 'rigid_index_size']
 	nindex = 0
 	for n in index_attribute_names:
 		# Continue grabbing index data only if additional exits.
@@ -268,27 +277,29 @@ def process_header(f):
 	# Load name and comments.
 	encoding = header['text_encoding']
 
-	_, header['local_character_name'] = parse_mmd.read_string_ubyte(f,encoding)
-	_, header['universal_character_name_size'] = parse_mmd.read_string_ubyte(f,encoding)
-	_, header['comment_local'] = parse_mmd.read_string_ubyte(f,encoding)
-	_, header['comment_universal'] = parse_mmd.read_string_ubyte(f,encoding)
+	_, header['local_character_name'] = parse_mmd.read_string_ubyte(
+		f, encoding)
+	_, header['universal_character_name_size'] = parse_mmd.read_string_ubyte(
+		f, encoding)
+	_, header['comment_local'] = parse_mmd.read_string_ubyte(f, encoding)
+	_, header['comment_universal'] = parse_mmd.read_string_ubyte(f, encoding)
 
 	return header
 
 
 def create_mesh(new_objects,
-                use_edges,
-                verts_loc,
-                verts_nor,
-                verts_tex,
-                faces,
-                unique_materials,
-                unique_material_images,
-                unique_smooth_groups,
-                vertex_groups,
-                use_material_import,
-                dataname,
-                ):
+				use_edges,
+				verts_loc,
+				verts_nor,
+				verts_tex,
+				faces,
+				unique_materials,
+				unique_material_images,
+				unique_smooth_groups,
+				vertex_groups,
+				use_material_import,
+				dataname,
+				):
 	me = bpy.data.meshes.new(dataname)
 
 
@@ -305,7 +316,8 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 	edges = []
 	tot_loops = 0
 
-	mesh = bpy.data.meshes.new(header['local_character_name'])  # add a new mesh
+	mesh = bpy.data.meshes.new(
+		header['local_character_name'])  # add a new mesh
 	obj = bpy.data.objects.new(header['local_character_name'], mesh)
 
 	# # make sure the list isnt too big
@@ -329,12 +341,10 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 	vertices_data = []
 	normal_data = []
 
-
 	for i, v_ in enumerate(vertices):
 		v = v_['vertex']
 		vertices_data.append([v[0], v[1], v[2]])
 		normal_data.append([v[3], v[4], v[5]])
-
 
 		#uv.data[i].uv = v[6:7]
 	mesh.vertices.foreach_set("co", unpack_list(vertices_data))
@@ -366,7 +376,7 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 	uv.name = "UV"
 	blen_uvs = mesh.uv_layers[0]
 	for i, v in enumerate(vertices):
-		pass#blen_uvs.data[i].uv = (v[6], v[7])
+		pass  # blen_uvs.data[i].uv = (v[6], v[7])
 
 		# Compute all groups used.
 #		vg = obj.vertex_groups
@@ -375,9 +385,9 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 	# if verts_tex and me.polygons:
 	# 	me.uv_textures.new()
 	#	for
-#bpy.ops.object.vertex_group_add()
-#bpy.ops.object.shape_key_add(from_mix=False)
-#bpy.ops.mesh.uv_texture_add()
+# bpy.ops.object.vertex_group_add()
+# bpy.ops.object.shape_key_add(from_mix=False)
+# bpy.ops.mesh.uv_texture_add()
 #		vg.add([vertice index], weight, "ADD")
 		# me.vertices.add(len(verts_loc))
 		# me.loops.add(tot_loops)
@@ -451,37 +461,39 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 			assert(0)
 
 	#mesh.polygons.foreach_set("use_smooth", [True] * len(mesh.polygons))
-	#mesh.normals_split_custom_set(normal_data)
-	#bpy.ops.object.mode_set(mode='OBJECT')
+	# mesh.normals_split_custom_set(normal_data)
+	# bpy.ops.object.mode_set(mode='OBJECT')
 
 	return obj, mesh
 
 
 def compute_type_sizes(header):
 	return {'bdef1': header['bone_index_size'],
-	        'bdef2': header['bone_index_size'] * 2 + parse_mmd.const_float,
-	        'bdef4': header['bone_index_size'] * 4 + parse_mmd.const_float * 4,
-	        'sdef': header['bone_index_size'] * 2 + parse_mmd.const_float + parse_mmd.const_vec3 * 3,
-	        'qdef': header['bone_index_size'] * 4 + parse_mmd.const_float * 4,
-	        # TOOD add more.
-	        }
+			'bdef2': header['bone_index_size'] * 2 + parse_mmd.const_float,
+			'bdef4': header['bone_index_size'] * 4 + parse_mmd.const_float * 4,
+			'sdef': header['bone_index_size'] * 2 + parse_mmd.const_float + parse_mmd.const_vec3 * 3,
+			'qdef': header['bone_index_size'] * 4 + parse_mmd.const_float * 4,
+			# TOOD add more.
+			}
+
 
 def load(context,
-         filepath,
-         *,
-         global_clamp_size=0.0,
-         use_edges=True,
-         use_image_search=True,
-         use_cycles=True,
-         relpath=None,
-         use_material_import,
-         use_joint_import,
-         global_matrix=None
-         ):
+		 filepath,
+		 *,
+		 global_clamp_size=0.0,
+		 use_edges=True,
+		 use_image_search=True,
+		 use_cycles=True,
+		 relpath=None,
+		 use_material_import,
+		 use_joint_import,
+		 global_matrix=None
+		 ):
 	#view_layer = context.view_layer
 
 	with ProgressReport(context.window_manager) as progress:
-		progress.enter_substeps(1, str.format("Importing MMD file: {}...", filepath))
+		progress.enter_substeps(1, str.format(
+			"Importing MMD file: {}...", filepath))
 
 		if global_matrix is None:
 			global_matrix = mathutils.Matrix()
@@ -508,7 +520,8 @@ def load(context,
 				# Vertex count
 				# Vertex
 				#progress.enter_substeps(1,"Extracting Vertex Data...")
-				vertices = parse_mmd.read_full_vertices_data(f, header, header['additional_vec4_count'])
+				vertices = parse_mmd.read_full_vertices_data(
+					f, header, header['additional_vec4_count'])
 				#print("vertex count: " + str(len(vertices)))
 
 				# Surface
@@ -522,17 +535,17 @@ def load(context,
 				# Texture
 				texture_paths = parse_mmd.read_all_texture_paths(f, header)
 				texture_paths = mmd_util.getFullPaths(filepath, texture_paths)
-				#print(texture_paths)
+				# print(texture_paths)
 				# material
 				materials = parse_mmd.read_all_material(f, header)
-				#print(materials)
+				# print(materials)
 				# Bone
 				bones = parse_mmd.read_all_bones(f, header)
-				#print(bones)
+				# print(bones)
 				# Morph
 				morphs = parse_mmd.read_all_morph(f, header)
 				print(morphs)
-				#Displayframe count
+				# Displayframe count
 				displayFrames = parse_mmd.read_all_display_frames(f, header)
 				print(displayFrames)
 				# Rigidbody count
@@ -553,12 +566,13 @@ def load(context,
 		#texture_list = load_mmd_images(filepath, texture_paths)
 
 		# materials_set = create_materials(filepath, relpath, material_libs, unique_materials,
-        #                            unique_material_images, use_image_search, use_cycles, float_func)
+	#                            unique_material_images, use_image_search, use_cycles, float_func)
 
 		progress.step("Done, loading bone skeleton system...")
-		root,bone_objects = create_bone_system(bones)
+		root, bone_objects = create_bone_system(bones)
 
-		mesh_object, mesh = create_geometry(vertices, surfaces, bone_objects, header, use_edges, None, use_material_import)
+		mesh_object, mesh = create_geometry(
+			vertices, surfaces, bone_objects, header, use_edges, None, use_material_import)
 		mesh_object.parent = root
 
 		create_rigidbodies(bone_objects, rigidbodies, joints)
@@ -573,17 +587,12 @@ def load(context,
 
 		progress.step("Done, loading geometry data..")
 
-
-
-
 		# for m in materials:
 		# 	mesh.materials.append(m)
 
 		progress.step("Done, loading materials and images...")
 
-
 		# Morph
-
 
 		# mesh.polygons.add(len(surfaces))
 		# mesh.polygons.foreach_set("vertices", surfaces)
@@ -592,11 +601,9 @@ def load(context,
 		#	bm.to_mesh(mesh)
 		#	bm.free()  # always do this when finished
 
-
 		# deselect all
 		if bpy.ops.object.select_all.poll():
 			bpy.ops.object.select_all(action='DESELECT')
-
 
 		# Name the character.
 		root.name = header['local_character_name']

@@ -121,7 +121,7 @@ class ExportMMD(Operator, ExportHelper, IOOBJOrientationHelper):
 	use_image_search = BoolProperty(
 		name="Image Search",
 		description="Search subdirs for any associated images "
-		            "(Warning, may be slow)",
+					"(Warning, may be slow)",
 		default=True,
 	)
 
@@ -130,17 +130,17 @@ class ExportMMD(Operator, ExportHelper, IOOBJOrientationHelper):
 
 		from mathutils import Matrix
 		keywords = self.as_keywords(ignore=("axis_forward",
-		                                    "axis_up",
-		                                    "global_scale",
-		                                    "check_existing",
-		                                    "filter_glob",
-		                                    ))
-		
+											"axis_up",
+											"global_scale",
+											"check_existing",
+											"filter_glob",
+											))
+
 
 		global_matrix = (Matrix.Scale(self.global_scale, 4) *
-		                 axis_conversion(to_forward=self.axis_forward,
-		                                 to_up=self.axis_up,
-		                                 ).to_4x4())
+						 axis_conversion(to_forward=self.axis_forward,
+										 to_up=self.axis_up,
+										 ).to_4x4())
 
 		keywords["global_matrix"] = global_matrix
 		return mmd_export.save(context, **keywords)
@@ -185,16 +185,16 @@ class ImportMMD(Operator, ImportHelper, IOOBJOrientationHelper):
 	use_image_search = BoolProperty(
 		name="Image Search",
 		description="Search subdirs for any associated images "
-		            "(Warning, may be slow)",
+					"(Warning, may be slow)",
 		default=True,
 	)
 
 	use_material_import = BoolProperty(name="Import Material",
-	                                   description="",
-	                                   default=True)
+									   description="",
+									   default=True)
 	use_joint_import = BoolProperty(name="Import Joints",
-	                                description="",
-	                                default=True)
+									description="",
+									default=True)
 
 	global_clamp_size = FloatProperty(
 		name="Clamp Size",
@@ -214,14 +214,14 @@ class ImportMMD(Operator, ImportHelper, IOOBJOrientationHelper):
 			self.use_groups_as_vgroups = False
 
 		keywords = self.as_keywords(ignore=("axis_forward",
-		                                    "axis_up",
-		                                    "filter_glob",
-		                                    "split_mode",
-		                                    ))
+											"axis_up",
+											"filter_glob",
+											"split_mode",
+											))
 
 		global_matrix = axis_conversion(from_forward=self.axis_forward,
-		                                from_up=self.axis_up,
-		                                ).to_4x4()
+										from_up=self.axis_up,
+										).to_4x4()
 		keywords["global_matrix"] = global_matrix
 		keywords["use_cycles"] = (context.scene.render.engine == 'CYCLES')
 
