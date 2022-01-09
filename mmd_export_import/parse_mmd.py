@@ -4,6 +4,8 @@ import mmd_export_import.mmd_constants as mmd_constants
 import array
 import bpy
 import zlib
+import ntpath
+import os
 
 data_section_names = ['Vertex', 'Face', 'Texture', 'Material',
 					  'Bone', 'Morph', 'Frame', 'Rigidbody', 'Joint', 'Softbody']
@@ -196,7 +198,7 @@ def read_all_texture_paths(reader, struct_size):
 	paths = []
 	for j in range(0, num_textures):
 		s, path = read_string_ubyte(reader)
-		paths.append(path)
+		paths.append(path.replace(os.sep, ntpath.sep).replace("\\", os.sep))
 	return paths
 
 
@@ -274,7 +276,7 @@ def read_all_bones(reader, struct_size):
 
 		#
 		if flag & const_bone_flag_index_tail_position:
-			tail_index = read_index(reader, struct_size['bone_index_size'])
+			tail_index = read_signed_index(reader, struct_size['bone_index_size'])
 			bone['tail_index'] = tail_index
 		else:
 			tail_pos = read_vec3(reader)
@@ -282,7 +284,7 @@ def read_all_bones(reader, struct_size):
 
 		# Inherit bone
 		if flag & (const_bone_flag_inherit_rotation | const_bone_flag_inherit_translation):
-			parent_index = read_index(reader, struct_size['bone_index_size'])
+			parent_index = read_signed_index(reader, struct_size['bone_index_size'])
 			parent_influence = read_float(reader)
 			bone['parent_index'] = parent_index
 			bone['parent_influence'] = parent_influence
@@ -458,7 +460,7 @@ def read_all_rigidbodies(f, struct_sizes):
 
 		related_bone_index = read_index(f, struct_sizes['bone_index_size'])
 		group_id = read_ubyte(f)
-		non_collision_group = read_sint(f)
+		non_collision_group = read_signed_short(f)
 
 		shape = read_ubyte(f)
 		shape_size = read_vec3(f)
@@ -550,7 +552,7 @@ def read_all_softbody(f, struct_sizes):
 		shape = read_ubyte(f)
 		material_index = read_index(f, struct_sizes['material_index_size'])
 		group_id = read_ubyte(f)
-		non_collision_group = read_sint(f)
+		non_collision_group = read_signed_short(f)
 
 		softbody = {
 			'local_name': local_name,
@@ -560,6 +562,12 @@ def read_all_softbody(f, struct_sizes):
 	return softbodies
 
 
+def read_signed_index(reader, size_type):
+	size_hash_lookup = {1: read_signed_byte, 2: read_signed_short, 4: read_signed_short}
+	lookup_func = size_hash_lookup[size_type]
+
+	return lookup_func(reader)
+
 def read_index(reader, size_type):
 	size_hash_lookup = {1: read_ubyte, 2: read_ushort, 4: read_uint}
 	lookup_func = size_hash_lookup[size_type]
@@ -568,24 +576,27 @@ def read_index(reader, size_type):
 
 
 def read_uint(read):
-	return unpack(b'<I', read.read(const_int))[0]
+	return unpack(b'I', read.read(const_int))[0]
 
 
 def read_int(read):
 	return unpack(b'<i', read.read(const_int))[0]
 
 
-def read_sint(read):
-	return unpack(b'H', read.read(const_short))[0]
+def read_signed_short(read):
+	return unpack(b'h', read.read(const_short))[0]
 
 
 def read_ushort(read):
-	return unpack(b'h', read.read(const_short))[0]
+	return unpack(b'H', read.read(const_short))[0]
 
 
 def read_uint64(read):
 	return unpack(b'<Q', read.read(const_uint64))[0]
 
+
+def read_signed_byte(read):
+	return unpack(b'b', read.read(const_byte))[0]
 
 def read_ubyte(read):
 	return unpack(b'B', read.read(const_byte))[0]

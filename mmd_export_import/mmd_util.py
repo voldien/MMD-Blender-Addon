@@ -1,5 +1,8 @@
 # <pep8 compliant>
 import os
+
+import bpy
+
 if "bpy" in locals():
 	import importlib
 
@@ -21,3 +24,9 @@ def validate_version_signature(sig, version):
 
 def get_absolute_path(filepath, texture_paths):
 	return [os.fsdecode(str.format("{}/{}", filepath, t_path)) for t_path in texture_paths]
+
+
+def link_object_to_active_scene(obj, coll):
+	coll.objects.link(obj)
+	bpy.context.view_layer.objects.active = obj
+	obj.select_set(True)

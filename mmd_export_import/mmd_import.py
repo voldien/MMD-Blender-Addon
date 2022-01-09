@@ -45,47 +45,17 @@ def insensitive_path(path):
 	return path
 
 
-# def image_load(context_imagepath_map, line, DIR, recursive, relpath):
-# 	filepath_parts = line.split(b' ')
-# 	image = None
-#
-# 	path = insensitive_path(os.path.dirname(context.filepath))
-# 	filepath = path + os.path.sep + file
-#
-# 	for i in range(-1, -len(filepath_parts), -1):
-# 		#imagepath = os.fsdecode(b" ".join(filepath_parts[i:]))
-# 		#image = context_imagepath_map.get(imagepath, ...)
-# 		image = load_image(filepath)
-# 	# 	if image is ...:
-# 	# 		image = load_image(
-# 	# 			imagepath, DIR, recursive=recursive, relpath=relpath)
-# 	# 		if image is None and "_" in imagepath:
-# 	# 			image = load_image(imagepath.replace(
-# 	# 				"_", " "), DIR, recursive=recursive, relpath=relpath)
-# 	# 		if image is not None:
-# 	# 			context_imagepath_map[imagepath] = image
-# 	# 			break
-# 	#
-# 	# if image is None:
-# 	# 	imagepath = os.fsdecode(filepath_parts[-1])
-# 	# 	image = load_image(imagepath, DIR, recursive=recursive,
-# 	# 					   place_holder=True, relpath=relpath)
-# 	# 	context_imagepath_map[imagepath] = image
-#
-# 	return image
-
-
 def load_mmd_images(mmd_file_root_path, texture_paths):
-	textures = []
-	for texture_path in texture_paths:
-		texture_absolute_path = mmd_file_root_path + os.path.sep + texture_path
+	images = []
+	filepath_dir = os.path.dirname(mmd_file_root_path)
+	for texture_filename in texture_paths:
+		texture_absolute_path = str.format("{}{}{}", filepath_dir, os.path.sep, texture_filename)
 		texture = load_image(texture_absolute_path)
 		if texture is not None:
-			texture.name = texture_path
-			break
-	#	texture.alpha_mode = 'STRAIGHT'
-		textures.append(texture)
-	return textures
+			texture.name = texture_filename
+		#	texture.alpha_mode = 'STRAIGHT'
+		images.append(texture)
+	return images
 
 
 def create_materials(filepath, relpath,
@@ -129,7 +99,7 @@ def create_materials(filepath, relpath,
 		environment_index = m["environment_index"]
 		if texture_index < len(mmd_texture_object):
 			principled.base_color_texture.image = mmd_texture_object[texture_index]
-			#principled.alpha = mmd_texture_object[texture_index].to_a()
+		# principled.alpha = mmd_texture_object[texture_index].to_a()
 		unique_materials[name] = local_material
 
 	# if True:  # use_cycles
@@ -355,7 +325,7 @@ def create_mesh(new_objects,
 	me = bpy.data.meshes.new(dataname)
 
 
-def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materials, use_material_import):
+def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materials, use_material_import, mmd_materials):
 	# if unique_smooth_groups:
 	#     sharp_edges = set()
 	#     smooth_group_users = {context_smooth_group: {}
@@ -367,72 +337,82 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 	edges = []
 	tot_loops = 0
 
-	mesh = bpy.data.meshes.new(
-		header['local_character_name'])  # add a new mesh
-	obj = bpy.data.objects.new(header['local_character_name'], mesh)
-
-	# # make sure the list isnt too big
-	# for material in materials:
-	#     me.materials.append(material)
-
-	mesh.vertices.add(len(vertices))
-	mesh.loops.add(tot_loops)
-	mesh.polygons.add(len(surfaces) / 3)
-
-	# Add object the scene.
-	scene = bpy.context.scene
-
-	bpy.context.collection.objects.link(obj)  # put the object into the scene (link)
-	# 3.0
-	bpy.context.view_layer.objects.active = obj
-	# 2.8
-	# scene.objects.active = obj  # set as the active object in the scene
-	bpy.context.object.select_set(True)
-
-	# me.loops.foreach_set("normal", loops_nor)
-	#				bm = bmesh.new()
-
-	# mesh.uv_layers.new().data
 	vertices_data = []
 	normal_data = []
 
 	for i, v_ in enumerate(vertices):
-		v = v_['vertex']
-		vertices_data.append([v[0], v[1], v[2]])
-		normal_data.append([v[3], v[4], v[5]])
+		pos_normal_uv = v_['vertex']
+		vertices_data.append((pos_normal_uv[0], pos_normal_uv[1], pos_normal_uv[2]))
+		normal_data.append((pos_normal_uv[3], pos_normal_uv[4], pos_normal_uv[5]))
 
-	# uv.data[i].uv = v[6:7]
-	mesh.vertices.foreach_set("co", unpack_list(vertices_data))
-	mesh.loops.foreach_get("normal", unpack_list(normal_data))
-	#			bm.verts.new([v[0],v[1],v[2]])  # add a new vert
+	triangles = []
+	for i0, i1, i2 in zip(*[iter(surfaces)] * 3):
+		assert i0 < len(vertices) and i1 < len(vertices) and i2 < len(vertices)
+		assert i0 >= 0 and i1 >= 0 and i2 >= 0
+		triangles.append((i0, i1, i2))
 
-	facesData = []
+	mesh = bpy.data.meshes.new(name=
+							   header['local_character_name'])  # add a new mesh
+	print("assign data " + str(len(vertices_data)) + " " + str(len(triangles)))
+	mesh.from_pydata(vertices_data, [], triangles)
+	mesh.validate(verbose=True)
+
+	mesh.normals_split_custom_set_from_vertices(normal_data)
+	mesh.use_auto_smooth = True
+
+	#mesh.object_type = 'MESH'
+	# mesh.userText = mesh_struct.user_text
+	# mesh.sort_level = mesh_struct.header.sort_level
+	# mesh.casts_shadow = mesh_struct.casts_shadow()
+	# mesh.two_sided = mesh_struct.two_sided()
+
+	mesh_obj = bpy.data.objects.new(header['local_character_name'], mesh)
+	mesh_obj.use_empty_image_alpha = True
+	# # make sure the list isnt too big
+	# for material in materials:
+	#     me.materials.append(material)
+	#
+	# mesh.vertices.add(len(vertices))
+	# mesh.loops.add(tot_loops)
+	# mesh.polygons.add(len(surfaces) / 3)
+
+	# Add object the scene.
+	scene = bpy.context.scene
+
+	bpy.context.collection.objects.link(mesh_obj)  # put the object into the scene (link)
+	# 3.0
+	bpy.context.view_layer.objects.active = mesh_obj
+	# 2.8
+	# scene.objects.active = obj  # set as the active object in the scene
+	bpy.context.object.select_set(True)
+
 	loops_vert_idx = []
 	faces_loop_start = []
 	faces_loop_total = []
 	lidx = 0
-	for i0, i1, i2 in zip(*[iter(surfaces)] * 3):
-		facesData.append([i0, i1, i2])
 
-	for f in facesData:
-		print(f)
-		vidx = f
-		nbr_vidx = len(vidx)
-		loops_vert_idx.extend(vidx)
-		faces_loop_start.append(lidx)
-		faces_loop_total.append(nbr_vidx)
-		lidx += nbr_vidx
+	# me.loops.foreach_set("normal", loops_nor)
+	b_mesh = bmesh.new()
+	b_mesh.from_mesh(mesh)
+
+	# uv.data[i].uv = v[6:7]
+	# mesh.vertices.foreach_set("co", unpack_list(vertices_data))
+	# mesh.loops.foreach_get("normal", unpack_list(normal_data))
+	# #			bm.verts.new([v[0],v[1],v[2]])  # add a new vert
+
+	#
+	# for f in triangles:
+	# 	print(f)
+	# 	vidx = f
+	# 	nbr_vidx = len(vidx)
+	# 	loops_vert_idx.extend(vidx)
+	# 	faces_loop_start.append(lidx)
+	# 	faces_loop_total.append(nbr_vidx)
+	# 	lidx += nbr_vidx
 
 	# mesh.loops.foreach_set("vertex_index", loops_vert_idx)
 	# mesh.polygons.foreach_set("loop_start", faces_loop_start)
 	# mesh.polygons.foreach_set("loop_total", faces_loop_total)
-
-	bpy.ops.mesh.uv_texture_add()
-	uv = mesh.uv_layers[0]
-	uv.name = "UV"
-	blen_uvs = mesh.uv_layers[0]
-	for i, v in enumerate(vertices):
-		pass  # blen_uvs.data[i].uv = (v[6], v[7])
 
 	# Compute all groups used.
 	#		vg = obj.vertex_groups
@@ -452,14 +432,21 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 	bpy.ops.object.mode_set(mode='OBJECT')
 	# mesh.from_pydata(vertices_data, [], facesData)
 	# important to not remove loop normals here!
-	mesh.validate(clean_customdata=False)
-	mesh.update()
+
+	uv_layer = mesh.uv_layers.new(do_init=False)
+	uv_layer.name = "UV"
+	for i, face in enumerate(b_mesh.faces):
+		for loop in face.loops:
+			idx = triangles[i][loop.index % 3]
+			pos_normal_uv = vertices[idx]['vertex']
+			uv_layer.data[loop.index].uv = (pos_normal_uv[6], pos_normal_uv[7])
+
 
 	# Create all the weight groups from the bones.
 	for bone in bones:
-		obj.vertex_groups.new(name="")
+		mesh_obj.vertex_groups.new(name="")
 
-	# Assigne all bone vertex influence.
+	# Assign all bone vertex influence.
 	for i, vertex in enumerate(vertices):
 		vertex_indices = i
 		deform_type = vertex['weight_deform_type']
@@ -467,15 +454,15 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 
 		if deform_type == parse_mmd.deform_type_bdef1:
 			bone_index1 = weight_data[0]
-			obj.vertex_groups[bone_index1].add(
+			mesh_obj.vertex_groups[bone_index1].add(
 				[vertex_indices], 1, 'REPLACE')
 		elif deform_type == parse_mmd.deform_type_bdef2:
 			bone_index1 = weight_data[0]
 			bone_index2 = weight_data[1]
 			weight = weight_data[2]
-			obj.vertex_groups[bone_index1].add(
+			mesh_obj.vertex_groups[bone_index1].add(
 				[vertex_indices], weight, 'REPLACE')
-			obj.vertex_groups[bone_index2].add(
+			mesh_obj.vertex_groups[bone_index2].add(
 				[vertex_indices], 1.0 - weight, 'REPLACE')
 		elif deform_type == parse_mmd.deform_type_bdef4:
 			bone_index1 = weight_data[0]
@@ -486,13 +473,13 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 			weight2 = weight_data[5]
 			weight3 = weight_data[6]
 			weight4 = weight_data[7]
-			obj.vertex_groups[bone_index1].add(
+			mesh_obj.vertex_groups[bone_index1].add(
 				[vertex_indices], weight1, 'REPLACE')
-			obj.vertex_groups[bone_index2].add(
+			mesh_obj.vertex_groups[bone_index2].add(
 				[vertex_indices], weight2, 'REPLACE')
-			obj.vertex_groups[bone_index3].add(
+			mesh_obj.vertex_groups[bone_index3].add(
 				[vertex_indices], weight3, 'REPLACE')
-			obj.vertex_groups[bone_index4].add(
+			mesh_obj.vertex_groups[bone_index4].add(
 				[vertex_indices], weight4, 'REPLACE')
 		elif deform_type == parse_mmd.deform_type_sdef:
 			pass
@@ -505,22 +492,26 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 			weight2 = weight_data[5]
 			weight3 = weight_data[6]
 			weight4 = weight_data[7]
-			obj.vertex_groups[bone_index1].add(
+			mesh_obj.vertex_groups[bone_index1].add(
 				[vertex_indices], weight1, 'REPLACE')
-			obj.vertex_groups[bone_index2].add(
+			mesh_obj.vertex_groups[bone_index2].add(
 				[vertex_indices], weight2, 'REPLACE')
-			obj.vertex_groups[bone_index3].add(
+			mesh_obj.vertex_groups[bone_index3].add(
 				[vertex_indices], weight3, 'REPLACE')
-			obj.vertex_groups[bone_index4].add(
+			mesh_obj.vertex_groups[bone_index4].add(
 				[vertex_indices], weight4, 'REPLACE')
 		else:
 			assert 0
+
+	mesh.update()
+	mesh.validate(clean_customdata=False)
+
 
 	# mesh.polygons.foreach_set("use_smooth", [True] * len(mesh.polygons))
 	# mesh.normals_split_custom_set(normal_data)
 	# bpy.ops.object.mode_set(mode='OBJECT')
 
-	return obj, mesh
+	return mesh_obj, mesh
 
 
 # TODO relocate to common
@@ -601,12 +592,12 @@ def load(context,
 				# Extract Surface data.
 				progress.enter_substeps(1, "Extracting Surface Data...")
 				mdd_surfaces = parse_mmd.read_full_surface_data(f, header)
-				# print("surface count: " + str(len(surfaces)))
+				print("surface count: " + str(len(mdd_surfaces)))
 
 				# Extract Texture Paths
 				progress.enter_substeps(1, "Extracting Texture Path Data...")
 				mmd_texture_paths = parse_mmd.read_all_texture_paths(f, header)
-				#mmd_texture_paths = mmd_util.get_absolute_path(filepath, mmd_texture_paths)
+				# mmd_texture_paths = mmd_util.get_absolute_path(filepath, mmd_texture_paths)
 				print(mmd_texture_paths)
 
 				# Extract material Data
@@ -652,7 +643,7 @@ def load(context,
 
 		# Construct mesh data object.
 		mesh_object, mesh = create_geometry(
-			mmd_vertices, mdd_surfaces, bone_objects, header, use_edges, None, use_material_import)
+			mmd_vertices, mdd_surfaces, bone_objects, header, use_edges, None, use_material_import, mmd_materials)
 		mesh_object.parent = root
 
 		# Construct rigidbodies
@@ -671,10 +662,33 @@ def load(context,
 		context.view_layer.objects.active = mesh_object
 		for name, material in object_materials.items():
 			mesh_object.data.materials.append(material)
-		#			bpy.ops.object.material_slot_add()
-		#			bpy.context.material = material
-		#			bpy.ops.object.material_slot_assign()
 
+		bpy.ops.object.mode_set(mode='EDIT')
+		b_mesh = bmesh.from_edit_mesh(mesh)
+		face = b_mesh.faces
+		for s in face:
+			s.select = False
+		material_offset = 0
+
+		# for i, face in enumerate(b_mesh.faces):
+		# 	for loop in face.loops:
+		# 		idx = triangles[i][loop.index % 3]
+		# 		pos_normal_uv = vertices[idx]['vertex']
+		# 		uv_layer.data[loop.index].uv = (pos_normal_uv[6], pos_normal_uv[7])
+		#
+		for i, material in enumerate(mmd_materials):
+			surface_count = material["surface_count"]
+			select_surface = b_mesh.faces[material_offset:material_offset+surface_count]
+			for s in select_surface:
+				s.select = True
+			bpy.context.object.active_material_index = i
+			bpy.ops.object.material_slot_assign()
+
+			for s in select_surface:
+				s.select = False
+			material_offset += surface_count
+		bmesh.update_edit_mesh(mesh=mesh)
+		bpy.ops.object.mode_set(mode='OBJECT')
 		#
 		#
 		# progress.step("Done, building geometries (verts:%i faces:%i materials: %i smoothgroups:%i) ..." %
