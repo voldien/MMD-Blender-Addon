@@ -1,42 +1,46 @@
-bl_info = {
-	"name": "MMD Import - Export",
-	"author": "Valdemar Lindberg",
-	"version": (0, 1, 0),
-	"blender": (2, 80, 0),
-	"location": "File > Import-Export",
-	"description": "Loading MMD files.",
-	"warning": "",
-	"wiki_url": "",
-	"category": "Import-Export"}
-
-if "bpy" in locals():
-	import importlib
-
-	if "mmd_export" in locals():
-		importlib.reload(mmd_export)
-	if "mmd_import" in locals():
-		importlib.reload(mmd_import)
-
-from bpy.types import Operator
+# <pep8 compliant>
 import bpy
+from bpy.types import Panel
+from bpy_extras.io_utils import ImportHelper, ExportHelper
+import mmd_export_import.mmd_import as mmd_import
+import mmd_export_import.mmd_export as mmd_export
+from bpy.types import Operator
 import typing
-from bpy.props import (
-	BoolProperty,
-	FloatProperty,
-	StringProperty,
-	EnumProperty,
-)
+from bpy.props import BoolProperty, FloatProperty, StringProperty
+
 from bpy_extras.io_utils import (
 	ImportHelper,
 	ExportHelper,
-	orientation_helper_factory,
+	orientation_helper,
 	path_reference_mode,
 	axis_conversion,
 )
 
-IOOBJOrientationHelper = orientation_helper_factory("IOOBJOrientationHelper", axis_forward='-Z', axis_up='Y')
+VERSION = (0, 1, 0)
+bl_info = {
+	'name': 'MMD Import - Export',
+	'author': 'Valdemar Lindberg',
+	'version': (0, 1, 0),
+	'blender': (2, 80, 3),
+	'location': 'File > Import-Export > Miku Mikue Dance',
+	'description': 'Loading Miku Mikue Dance files (.pmx/.pmd/.vmd).',
+	'warning': 'Still in progress',
+	'wiki_url': '',
+	'doc_url': 'https://github.com/voldien/MMD-Blender-Addon',
+	'tracker_url': 'https://github.com/voldien/MMD-Blender-Addon/issues',
+	'category': 'Import-Export'}
 
-class ExportMMD(Operator, ExportHelper, IOOBJOrientationHelper):
+
+def print_version(info):
+	pass
+
+
+# IOOBJOrientationHelper = orientation_helper(
+#	"IOOBJOrientationHelper", axis_forward='-Z', axis_up='Y')
+
+
+@orientation_helper(axis_forward='-Z', axis_up='Y')
+class ExportMMD(Operator, ExportHelper):
 	"""Export a Miku Miku Dance File."""
 	bl_idname = "export_scene.mmd"
 	bl_label = "Export MMD"
@@ -44,7 +48,7 @@ class ExportMMD(Operator, ExportHelper, IOOBJOrientationHelper):
 
 	filename_ext = ".pmx"
 	filter_glob = StringProperty(
-		default="*.pmx;*.pmd",
+		default="*.pmx;*.pmd;*.vmd",
 		options={'HIDDEN'},
 	)
 
@@ -100,17 +104,17 @@ class ExportMMD(Operator, ExportHelper, IOOBJOrientationHelper):
 	)
 	author = StringProperty(
 		name="Author",
-		description="",
+		description="Assign author of the creation",
 		default=""
 	)
 	comment = StringProperty(
 		name="Comment",
-		description="",
+		description="Assign a comment about the file/character",
 		default=""
 	)
 	character_name = StringProperty(
 		name="Character Name",
-		description="",
+		description="Assign the character name.",
 		default=""
 	)
 
@@ -135,7 +139,6 @@ class ExportMMD(Operator, ExportHelper, IOOBJOrientationHelper):
 											"check_existing",
 											"filter_glob",
 											))
-
 
 		global_matrix = (Matrix.Scale(self.global_scale, 4) *
 						 axis_conversion(to_forward=self.axis_forward,
@@ -169,18 +172,18 @@ class ExportMMD(Operator, ExportHelper, IOOBJOrientationHelper):
 		layout.prop(self, "character_name")
 
 
-class ImportMMD(Operator, ImportHelper, IOOBJOrientationHelper):
+@orientation_helper(axis_forward='-Z', axis_up='Y')
+class ImportMMD(Operator, ImportHelper):
 	"""Import a Miku Miku Dance File."""
-	bl_idname = "import_scene.mmd"
+	bl_idname = "import_mesh.mmd"
 	bl_label = "Import MMD"
 	bl_options = {'PRESET', 'UNDO'}
 
-	filename_ext = "*.pmx;*.pmd"
+	filename_ext = "*.pmx;*.pmd,*.vmd"
 	filter_glob = StringProperty(
-		default="*.pmx;*.pmd",
+		default=filename_ext,
 		options={'HIDDEN'},
 	)
-
 
 	use_image_search = BoolProperty(
 		name="Image Search",
@@ -203,9 +206,13 @@ class ImportMMD(Operator, ImportHelper, IOOBJOrientationHelper):
 		soft_min=0.0, soft_max=1000.0,
 		default=0.0,
 	)
+	split_mode = BoolProperty(name="split_mode", description="", default=False)
+
+	use_split_objects = BoolProperty(name="Split Objects",
+									 description="",
+									 default=True)
 
 	def execute(self, context) -> typing.Set[typing.Union[str, int]]:
-		from . import mmd_import
 
 		if self.split_mode == 'OFF':
 			self.use_split_objects = False
@@ -230,41 +237,48 @@ class ImportMMD(Operator, ImportHelper, IOOBJOrientationHelper):
 			import os
 			keywords["relpath"] = os.path.dirname(bpy.data.filepath)
 
-		return mmd_import.load(context, **keywords)
+		import_settings = {}
+
+		return mmd_import.load(context, **keywords, use_joint_import=False, use_material_import=False)
 
 	def draw(self, context):
 		layout = self.layout
 
-		row = layout.row(align=True)
-		row.prop(self, "use_smooth_groups")
-		row.prop(self, "use_edges")
+	# row = layout.row(align=True)
+	# row.prop(self, "use_smooth_groups")
+	# row.prop(self, "use_edges")
+	#
+	# box = layout.box()
+	# row = box.row()
+	# row.prop(self, "split_mode", expand=True)
+	#
+	# row = layout.split()
+	# row.prop(self, "global_clamp_size")
+	# layout.prop(self, "axis_forward")
+	# layout.prop(self, "axis_up")
+	#
+	# layout.prop(self, "use_image_search")
+	# layout.prop(self, "use_material_import")
+	# layout.prop(self, "use_joint_import")
 
-		box = layout.box()
-		row = box.row()
-		row.prop(self, "split_mode", expand=True)
 
-		row = layout.split(percentage=0.67)
-		row.prop(self, "global_clamp_size")
-		layout.prop(self, "axis_forward")
-		layout.prop(self, "axis_up")
+def menu_func_import(self, context):
+	self.layout.operator(ImportMMD.bl_idname,
+						 text="Miku Miku Dance MMD (.pmx/.pmd/.vmd)")
 
-		layout.prop(self, "use_image_search")
-		layout.prop(self, "use_material_import")
-		layout.prop(self, "use_joint_import")
+
+def menu_func_export(self, context):
+	self.layout.operator(ExportMMD.bl_idname,
+						 text="Miku Miku Dance MMD (.pmx/.pmd/.vmd)")
+
+
+menu_func_list = [menu_func_import, menu_func_export]
 
 classes = (
 	ImportMMD,
 	ExportMMD,
 )
 
-
-def menu_func_import(self, context):
-	self.layout.operator(ImportMMD.bl_idname, text="Miku Miku Dance MMD (.pmx/.pmd)")
-
-def menu_func_export(self, context):
-	self.layout.operator(ExportMMD.bl_idname, text="Miku Miku Dance MMD (.pmx/.pmd)")
-
-menu_func_list = [menu_func_import, menu_func_export]
 
 def register():
 	for cls in classes:
@@ -280,7 +294,6 @@ def register():
 
 
 def unregister():
-
 	# Delete menu for export and import
 	if bpy.app.version >= (2, 80, 0):
 		bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
@@ -289,8 +302,9 @@ def unregister():
 		bpy.types.INFO_MT_file_import.remove(menu_func_import)
 		bpy.types.INFO_MT_mesh_add.remove(menu_func_import)
 
-	for cls in classes:
-		bpy.utils.unregister_module(cls)
+	for class_ in reversed(classes):
+		bpy.utils.unregister_class(class_)
+
 
 if __name__ == "__main__":
 	register()

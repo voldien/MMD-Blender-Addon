@@ -1,13 +1,15 @@
+# <pep8 compliant>
 from struct import unpack, pack
+import mmd_export_import.mmd_constants as mmd_constants
 import array
 import bpy
 import zlib
 
 data_section_names = ['Vertex', 'Face', 'Texture', 'Material',
-                      'Bone', 'Morph', 'Frame', 'Rigidbody', 'Joint', 'Softbody']
+					  'Bone', 'Morph', 'Frame', 'Rigidbody', 'Joint', 'Softbody']
 index_attribute_names = ['text_encoding', 'additional_vec4_count', 'vertex_index_size', 'texture_index_size',
-                         'material_index_size',
-                         'bone_index_size', 'morph_index_size', 'rigid_index_size']
+						 'material_index_size',
+						 'bone_index_size', 'morph_index_size', 'rigid_index_size']
 
 magic_signature = [0x50, 0x4D, 0x58, 0x20]
 
@@ -69,10 +71,11 @@ deform_type_bdef4 = 2
 deform_type_sdef = 3
 deform_type_qdef = 4
 deform_lookup_table = {0: 'bdef1',
-                       1: 'bdef2',
-                       2: 'bdef4',
-                       3: 'sdef',
-                       4: 'qdef'}
+					   1: 'bdef2',
+					   2: 'bdef4',
+					   3: 'sdef',
+					   4: 'qdef'}
+
 
 def read_full_vertices_data(reader, struct_sizes, additional):
 	num_vertices = read_uint(reader)
@@ -83,18 +86,19 @@ def read_full_vertices_data(reader, struct_sizes, additional):
 		vertices.append(vertex)
 	return vertices
 
+
 def write_full_vertices_data(writer, struct_sizes, vertices, additional):
 	num_vertices = len(vertices)
 
 	for i in range(0, num_vertices):
 		pass
-		# {
-		# 	'vertex': pos_normal_uv,
-		# 	'additional_vec': additional_vec,
-		# 	'weight_deform_type': weight_deform_type,
-		# 	'weight_data': weight_data,
-		# 	'edge_scale': edge_scale
-		# }
+	# {
+	# 	'vertex': pos_normal_uv,
+	# 	'additional_vec': additional_vec,
+	# 	'weight_deform_type': weight_deform_type,
+	# 	'weight_data': weight_data,
+	# 	'edge_scale': edge_scale
+	# }
 
 
 def read_bdef1(reader, struct_sizes):
@@ -105,49 +109,49 @@ def read_bdef1(reader, struct_sizes):
 def read_bdef2(reader, struct_sizes):
 	index_size = struct_sizes['bone_index_size']
 	return [read_index(reader, index_size),
-	        read_index(reader, index_size),
-	        read_float(reader)]
+			read_index(reader, index_size),
+			read_float(reader)]
 
 
 def read_bdef4(reader, struct_sizes):
 	index_size = struct_sizes['bone_index_size']
 	return [read_index(reader, index_size),
-	        read_index(reader, index_size),
-	        read_index(reader, index_size),
-	        read_index(reader, index_size),
-	        read_float(reader),
-	        read_float(reader),
-	        read_float(reader),
-	        read_float(reader)]
+			read_index(reader, index_size),
+			read_index(reader, index_size),
+			read_index(reader, index_size),
+			read_float(reader),
+			read_float(reader),
+			read_float(reader),
+			read_float(reader)]
 
 
 def read_sdef(reader, struct_sizes):
 	index_size = struct_sizes['bone_index_size']
 	return [read_index(reader, index_size),
-	        read_index(reader, index_size),
-	        read_float(reader),
-	        read_vec3(reader),
-	        read_vec3(reader),
-	        read_vec3(reader)]
+			read_index(reader, index_size),
+			read_float(reader),
+			read_vec3(reader),
+			read_vec3(reader),
+			read_vec3(reader)]
 
 
 def read_qdef(reader, struct_sizes):
 	index_size = struct_sizes['bone_index_size']
 	return [read_index(reader, index_size),
-	        read_index(reader, index_size),
-	        read_index(reader, index_size),
-	        read_index(reader, index_size),
-	        read_float(reader),
-	        read_float(reader),
-	        read_float(reader),
-	        read_float(reader)]
+			read_index(reader, index_size),
+			read_index(reader, index_size),
+			read_index(reader, index_size),
+			read_float(reader),
+			read_float(reader),
+			read_float(reader),
+			read_float(reader)]
 
 
 deform_lookup_function = [read_bdef1,
-                          read_bdef2,
-                          read_bdef4,
-                          read_sdef,
-                          read_qdef]
+						  read_bdef2,
+						  read_bdef4,
+						  read_sdef,
+						  read_qdef]
 
 
 def read_full_vertex_data(reader, struct_sizes, additional):
@@ -167,13 +171,15 @@ def read_full_vertex_data(reader, struct_sizes, additional):
 
 	#
 	return {
-		'vertex' : pos_normal_uv,
-		'additional_vec' : additional_vec,
-		'weight_deform_type' : weight_deform_type,
+		'vertex': pos_normal_uv,
+		'additional_vec': additional_vec,
+		'weight_deform_type': weight_deform_type,
 		'weight_data': weight_data,
 		'edge_scale': edge_scale
 	}
-	#return list(pos_normal_uv) + additional_vec + [weight_deform_type] + [weight_data] + [edge_scale]
+
+
+# return list(pos_normal_uv) + additional_vec + [weight_deform_type] + [weight_data] + [edge_scale]
 
 
 def read_full_surface_data(reader, struct_size):
@@ -383,8 +389,8 @@ def read_all_morph(f, struct_sizes):
 	num_morphs = read_int(f)
 	morphs = []
 	morph_type_parse_lookup = [read_morph_group, read_morph_vertex, read_morph_bone, read_morph_uv, read_morph_uv,
-	                           read_morph_uv, read_morph_uv, read_morph_uv, read_morph_material, read_morph_flip,
-	                           read_morph_impulse]
+							   read_morph_uv, read_morph_uv, read_morph_uv, read_morph_material, read_morph_flip,
+							   read_morph_impulse]
 	for i in range(0, num_morphs):
 		_, local_name = read_string_ubyte(f, struct_sizes['text_encoding'])
 		_, universal_name = read_string_ubyte(f, struct_sizes['text_encoding'])
@@ -396,7 +402,7 @@ def read_all_morph(f, struct_sizes):
 			'local_name': local_name,
 			'universal_name': universal_name,
 			'morph_type': morph_type,
-			'data' : []
+			'data': []
 		}
 		#
 		parse_func = morph_type_parse_lookup[morph_type]
@@ -437,7 +443,7 @@ def read_all_display_frames(f, struct_sizes):
 			frame_type = read_ubyte(f)
 
 			frame['data'].append(frame_lookup_table[frame_type](f, struct_sizes))
-			
+
 		display_frames.append(frame)
 
 	return display_frames
@@ -485,7 +491,7 @@ def read_all_rigidbodies(f, struct_sizes):
 			'rotation_damping': rotation_damping,
 			'repulsion': repulsion,
 			'friction_force': friction_force,
-			'physic_mode': physic_mode 
+			'physic_mode': physic_mode
 		}
 
 		rigidbodies.append(rigidbody)
@@ -495,7 +501,7 @@ def read_all_rigidbodies(f, struct_sizes):
 
 def read_all_joints(f, struct_sizes):
 	num_joints = read_int(f)
-	joints= []
+	joints = []
 	for a in range(0, num_joints):
 		_, local_name = read_string_ubyte(f)
 		_, universal_name = read_string_ubyte(f)
@@ -560,6 +566,7 @@ def read_index(reader, size_type):
 	# data = reader.read(size_type)
 	return lookup_func(reader)
 
+
 def read_uint(read):
 	return unpack(b'<I', read.read(const_int))[0]
 
@@ -611,32 +618,42 @@ def write_index(writer, size_type, index):
 	lookup_func = size_hash_lookup[size_type]
 	return lookup_func(writer, index)
 
+
 def write_uint(write, v):
 	return write.write(pack(b'<I', v))
+
 
 def write_int(write, v):
 	return write.write(pack(b'<i', v))
 
+
 def write_sint(writer, v):
 	return writer.write(pack(b'H', v))
+
 
 def write_ushort(writer, v):
 	return writer.write(pack(b'h', v))
 
+
 def write_uint64(writer, v):
 	return writer.write(pack(b'<Q', v))
+
 
 def write_ubyte(writer, v):
 	return writer.write(pack(b'B', v))
 
+
 def write_float(writer, v):
 	return writer.write(pack(b'f', v))
+
 
 def write_vec3(writer, v):
 	return writer.write(pack(b'fff', v))
 
+
 def write_vec4(writer, v):
 	return writer.write(pack(b'ffff', v))
+
 
 def write_string_ubyte(writer, v, encoding=0):
 	size = len(v)
@@ -646,6 +663,7 @@ def write_string_ubyte(writer, v, encoding=0):
 	elif encoding == 1:
 		data = data.decode("utf-8", "strict")
 	return writer.write(data)
+
 
 def unpack_array(read, array_type, array_stride, array_byteswap):
 	length = read_uint(read)
@@ -665,5 +683,3 @@ def unpack_array(read, array_type, array_stride, array_byteswap):
 	#    if array_byteswap and _IS_BIG_ENDIAN:
 	#        data_array.byteswap()
 	return data_array
-
-

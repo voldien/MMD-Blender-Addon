@@ -1,28 +1,29 @@
+# <pep8 compliant>
 if "bpy" in locals():
 	import importlib
+
 	if "parser_mmd" in locals():
 		importlib.reload(parser_mmd)
 	if "parser_mmd" in locals():
 		importlib.reload(mmd_util)
 
-import bpy
-from mathutils import Matrix, Euler, Vector
-
-from . import parse_mmd, mmd_util
-
 import array
 import os
 import time
+
 import bpy
 import mathutils
-from bpy_extras.io_utils import unpack_list
-from bpy_extras.image_utils import load_image
-
 import mathutils
-from progress_report import ProgressReport
+import  mmd_export_import.mmd_util as mmd_util
+import mmd_export_import.parse_mmd as parse_mmd
+from bpy_extras.image_utils import load_image
+from bpy_extras.io_utils import unpack_list
+from bpy_extras.wm_utils.progress_report import ProgressReport
+from mathutils import Matrix, Euler, Vector
 
+# from progress_report import ProgressReport
 
-def create_header(author, comment, character_name, version, section_data):
+def create_header(f, author, comment, character_name, version, section_data):
 	header = {}
 
 	#
@@ -120,13 +121,13 @@ def save(context,
 			# for convenience 'poly.loop_indices' can be used instead.
 			for loop_index in range(poly.loop_start, poly.loop_start + poly.loop_total):
 				print("    Vertex: %d" % mesh.loops[loop_index].vertex_index)
-				#print("    UV: %r" % uv_layer[loop_index].uv)
+		# print("    UV: %r" % uv_layer[loop_index].uv)
 
 		# Extract the triangles indices.
 		# Extract and convert materials.
 		# Extract bones
 
-		#header = create_header(author, comment,"", 2.0, {})
+		# header = create_header(author, comment,"", 2.0, {})
 
 		# Final step. Write everything to file.
 		# TODO write header

@@ -1,17 +1,20 @@
-# if "bpy" in locals():
-from bpy_extras.mesh_utils import ngon_tessellate
+# <pep8 compliant>
+
 if "bpy" in locals():
 	import importlib
 
 	if "parse_mmd" in locals():
-		importlib.reload(parse_mmd)
+		importlib.reload(mmd_export_import.parse_mmd)
 	if "mmd_util" in locals():
-		importlib.reload(mmd_util)
+		importlib.reload(mmd_export_import.mmd_util)
 
-from . import parse_mmd
-from . import mmd_util
 import bpy
-from struct import unpack
+from bpy_extras import node_shader_utils
+
+from bpy_extras.mesh_utils import ngon_tessellate
+
+import mmd_export_import.parse_mmd as parse_mmd
+import mmd_export_import.mmd_util as mmd_util
 
 from mathutils import Matrix, Euler, Vector
 import array
@@ -24,49 +27,75 @@ from bpy_extras.io_utils import unpack_list
 from bpy_extras.image_utils import load_image
 
 import mathutils
-from progress_report import ProgressReport
+
+if bpy.app.version >= (2, 80, 0):
+	from bpy_extras.wm_utils.progress_report import ProgressReport
+else:
+	from ProgressReport import progress_report
 
 
-def image_load(context_imagepath_map, line, DIR, recursive, relpath):
-	filepath_parts = line.split(b' ')
-	image = None
-	for i in range(-1, -len(filepath_parts), -1):
-		imagepath = os.fsdecode(b" ".join(filepath_parts[i:]))
-		image = context_imagepath_map.get(imagepath, ...)
-		if image is ...:
-			image = load_image(
-				imagepath, DIR, recursive=recursive, relpath=relpath)
-			if image is None and "_" in imagepath:
-				image = load_image(imagepath.replace(
-					"_", " "), DIR, recursive=recursive, relpath=relpath)
-			if image is not None:
-				context_imagepath_map[imagepath] = image
-				break
+def insensitive_path(path):
+	# find the io_stream on unix
+	directory = os.path.dirname(path)
+	name = os.path.basename(path)
 
-	if image is None:
-		imagepath = os.fsdecode(filepath_parts[-1])
-		image = load_image(imagepath, DIR, recursive=recursive,
-						   place_holder=True, relpath=relpath)
-		context_imagepath_map[imagepath] = image
-
-	return image
+	for io_stream_name in os.listdir(directory):
+		if io_stream_name.lower() == name.lower():
+			path = os.path.join(directory, io_stream_name)
+	return path
 
 
-def load_mmd_images(dir, texture_paths):
+# def image_load(context_imagepath_map, line, DIR, recursive, relpath):
+# 	filepath_parts = line.split(b' ')
+# 	image = None
+#
+# 	path = insensitive_path(os.path.dirname(context.filepath))
+# 	filepath = path + os.path.sep + file
+#
+# 	for i in range(-1, -len(filepath_parts), -1):
+# 		#imagepath = os.fsdecode(b" ".join(filepath_parts[i:]))
+# 		#image = context_imagepath_map.get(imagepath, ...)
+# 		image = load_image(filepath)
+# 	# 	if image is ...:
+# 	# 		image = load_image(
+# 	# 			imagepath, DIR, recursive=recursive, relpath=relpath)
+# 	# 		if image is None and "_" in imagepath:
+# 	# 			image = load_image(imagepath.replace(
+# 	# 				"_", " "), DIR, recursive=recursive, relpath=relpath)
+# 	# 		if image is not None:
+# 	# 			context_imagepath_map[imagepath] = image
+# 	# 			break
+# 	#
+# 	# if image is None:
+# 	# 	imagepath = os.fsdecode(filepath_parts[-1])
+# 	# 	image = load_image(imagepath, DIR, recursive=recursive,
+# 	# 					   place_holder=True, relpath=relpath)
+# 	# 	context_imagepath_map[imagepath] = image
+#
+# 	return image
+
+
+def load_mmd_images(mmd_file_root_path, texture_paths):
 	textures = []
-	for path in texture_paths:
-		texture = load_image(path, dir, recursive=False, place_holder=True)
+	for texture_path in texture_paths:
+		texture_absolute_path = mmd_file_root_path + os.path.sep + texture_path
+		texture = load_image(texture_absolute_path)
+		if texture is not None:
+			texture.name = texture_path
+			break
+	#	texture.alpha_mode = 'STRAIGHT'
 		textures.append(texture)
 	return textures
 
 
 def create_materials(filepath, relpath,
-					 material_libs, unique_materials, unique_material_images,
-					 use_image_search, use_cycles, float_func):
+					 material_libs, unique_materials, mmd_texture_object,
+					 use_image_search, use_cycles, mmd_materials):
 	DIR = os.path.dirname(filepath)
+	texture_paths = DIR
 	context_material_vars = set()
 
-# Don't load the same image multiple times
+	# Don't load the same image multiple times
 	context_imagepath_map = {}
 
 	cycles_material_wrap_map = {}
@@ -76,33 +105,47 @@ def create_materials(filepath, relpath,
 	textures = load_mmd_images(filepath, texture_paths)
 	# bpy.data.materials.new(name="MaterialName")
 
-	context_imagepath_map = {}
-
 	bpy.ops.object.mode_set(mode='OBJECT')
 
 	# make sure face select mode is enabled
-#	bpy.context.tool_settings.mesh_select_mode = [False, False, True]
+	#	bpy.context.tool_settings.mesh_select_mode = [False, False, True]
 
 	# Create new materials
-	for m in materials:
+	for m in mmd_materials:
 		name = m['local_name']
-		ma = unique_materials[name] = bpy.data.materials.new(
-			name.decode('utf-8', "replace"))
-		unique_material_images[name] = None
-		if True:  # use_cycles
-			from modules import cycles_shader_compat
-			ma_wrap = cycles_shader_compat.CyclesShaderWrapper(ma)
 
-	for name in unique_materials:  # .keys()
-		if name is not None:
-			ma = unique_materials[name] = bpy.data.materials.new(
-				name.decode('utf-8', "replace"))
-			# assign None to all material images to start with, add to later.
-			unique_material_images[name] = None
-			if use_cycles:
-				from modules import cycles_shader_compat
-				ma_wrap = cycles_shader_compat.CyclesShaderWrapper(ma)
-				cycles_material_wrap_map[ma] = ma_wrap
+		local_material = bpy.data.materials.new(name=
+												name)
+		# local_material.material_type = 'SHADER_MATERIAL'
+		local_material.use_nodes = True
+		local_material.blend_method = 'BLEND'
+		local_material.show_transparent_back = False
+
+		# local_material.ambient = m["ambient_color"]
+
+		principled = node_shader_utils.PrincipledBSDFWrapper(local_material, is_readonly=False)
+		principled.base_color = m["diffuse"][0:3]
+		texture_index = m["texture_index"]
+		environment_index = m["environment_index"]
+		if texture_index < len(mmd_texture_object):
+			principled.base_color_texture.image = mmd_texture_object[texture_index]
+			#principled.alpha = mmd_texture_object[texture_index].to_a()
+		unique_materials[name] = local_material
+
+	# if True:  # use_cycles
+	# from modules import cycles_shader_compat
+	# ma_wrap = cycles_shader_compat.CyclesShaderWrapper(ma)
+
+	# for name in unique_materials:  # .keys()
+	# 	if name is not None:
+	# 		unique_materials[name] = bpy.data.materials.new(name=
+	# 														name)
+	# assign None to all material images to start with, add to later.
+	# unique_material_images[name] = ma
+	# if use_cycles:
+	# 	from modules import cycles_shader_compat
+	# 	ma_wrap = cycles_shader_compat.CyclesShaderWrapper(ma)
+	# 	cycles_material_wrap_map[ma] = ma_wrap
 
 	return unique_materials
 
@@ -126,36 +169,45 @@ def split_mesh(verts_loc, faces, unique_materials, filepath, SPLIT_OB_OR_GROUP):
 #         raise MetarigError("Can't add new bone '%s' outside of edit mode" % bone_name)
 
 def create_bone_system(bones):
-	#view_layer = bpy.context.view_layer
+	# view_layer = bpy.context.view_layer
 
 	bone_objects = []
 	bone_internal = {}
 
-	#root = bpy.data.objects.new("")
-	# bpy.data.objects.new(bones[0].['local_name'], None)  # parent_type='BONE'
-	arm_data = bpy.data.armatures.new(name="")
-	root = bpy.data.objects.new(name="Root", object_data=arm_data)
+	def create_root_bone():
+		# root = bpy.data.objects.new("")
+		# bpy.data.objects.new(bones[0].['local_name'], None)  # parent_type='BONE'
+		arm_data = bpy.data.armatures.new(name="")
+		root = bpy.data.objects.new(name="Root", object_data=arm_data)
 
-	# view_layer.active_layer_collection.collection.objects.link(amature)
-	# amature.select_set(True)
+		# view_layer.active_layer_collection.collection.objects.link(amature)
+		# amature.select_set(True)
 
-	# instance in scene
-	obj_base = bpy.context.scene.objects.link(root)
-	obj_base.select = True
+		# instance in scene
+		# old 2.8 obj_base = bpy.context.scene.objects.link(root)
+		# 3.0
+		obj_base = bpy.context.collection.objects.link(root)
+		root.select_set(True)
+		# obj_base.select = True
 
-	bpy.context.scene.objects.active = root
-	is_hidden = root.hide
-	root.hide = False  # Can't switch to Edit mode hidden objects...
+		# 3.0
+		bpy.context.view_layer.objects.active = root
+		# 2.8
+		# bpy.context.collection.objects.active = root
+		# is_hidden = root.hide
+		# root.hide = False  # Can't switch to Edit mode hidden objects...
+		return root
+
+	root = create_root_bone()
 
 	bpy.ops.object.mode_set(mode='EDIT')
 
 	for i, bone in enumerate(bones):
-		utf8_bone_name = bone['local_name']  # .encode("utf-8")
+		utf8_bone_name = bone['local_name']
 		mmd_flags = bone['flag']
-		utf8_bone_name = "bone" + str(i)
 		arm_bone = root.data.edit_bones.new(name=utf8_bone_name)
 
-#		arm_bone.visable = mmd_flags & parse_mmd.const_bone_flag_is_visable
+		#		arm_bone.visable = mmd_flags & parse_mmd.const_bone_flag_is_visable
 
 		if mmd_flags & parse_mmd.const_bone_flag_inherit_rotation == 0:
 			arm_bone.use_inherit_rotation = False
@@ -196,9 +248,9 @@ def create_bone_system(bones):
 			else:
 				arm_bone.use_connect = True
 				arm_bone.tail = (0, 0, 0)
-		# if "X_dir" in bone.keys():
-		# 	arm_bone.translate(bone['X_dir'])
-		# 	arm_bone.translate(bone['Z_dir'])
+	# if "X_dir" in bone.keys():
+	# 	arm_bone.translate(bone['X_dir'])
+	# 	arm_bone.translate(bone['Z_dir'])
 	# Reset the state.
 	bpy.ops.object.mode_set(mode='POSE')
 
@@ -227,7 +279,7 @@ def create_bone_system(bones):
 			ik.chain_count = chain_count
 
 	bpy.ops.object.mode_set(mode='OBJECT')
-	root.hide = is_hidden
+	root.hide_set(False)
 
 	return root, bone_objects
 
@@ -304,7 +356,6 @@ def create_mesh(new_objects,
 
 
 def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materials, use_material_import):
-
 	# if unique_smooth_groups:
 	#     sharp_edges = set()
 	#     smooth_group_users = {context_smooth_group: {}
@@ -330,9 +381,13 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 
 	# Add object the scene.
 	scene = bpy.context.scene
-	scene.objects.link(obj)  # put the object into the scene (link)
-	scene.objects.active = obj  # set as the active object in the scene
-	obj.select = True  # select object
+
+	bpy.context.collection.objects.link(obj)  # put the object into the scene (link)
+	# 3.0
+	bpy.context.view_layer.objects.active = obj
+	# 2.8
+	# scene.objects.active = obj  # set as the active object in the scene
+	bpy.context.object.select_set(True)
 
 	# me.loops.foreach_set("normal", loops_nor)
 	#				bm = bmesh.new()
@@ -346,9 +401,9 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 		vertices_data.append([v[0], v[1], v[2]])
 		normal_data.append([v[3], v[4], v[5]])
 
-		#uv.data[i].uv = v[6:7]
+	# uv.data[i].uv = v[6:7]
 	mesh.vertices.foreach_set("co", unpack_list(vertices_data))
-	mesh.loops.foreach_get("normal",  unpack_list(normal_data))
+	mesh.loops.foreach_get("normal", unpack_list(normal_data))
 	#			bm.verts.new([v[0],v[1],v[2]])  # add a new vert
 
 	facesData = []
@@ -368,40 +423,41 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 		faces_loop_total.append(nbr_vidx)
 		lidx += nbr_vidx
 
-	#mesh.loops.foreach_set("vertex_index", loops_vert_idx)
-	#mesh.polygons.foreach_set("loop_start", faces_loop_start)
-	#mesh.polygons.foreach_set("loop_total", faces_loop_total)
+	# mesh.loops.foreach_set("vertex_index", loops_vert_idx)
+	# mesh.polygons.foreach_set("loop_start", faces_loop_start)
+	# mesh.polygons.foreach_set("loop_total", faces_loop_total)
 
-	uv = mesh.uv_textures.new()
+	bpy.ops.mesh.uv_texture_add()
+	uv = mesh.uv_layers[0]
 	uv.name = "UV"
 	blen_uvs = mesh.uv_layers[0]
 	for i, v in enumerate(vertices):
 		pass  # blen_uvs.data[i].uv = (v[6], v[7])
 
-		# Compute all groups used.
-#		vg = obj.vertex_groups
+	# Compute all groups used.
+	#		vg = obj.vertex_groups
 
-		# Load all UV data.
+	# Load all UV data.
 	# if verts_tex and me.polygons:
 	# 	me.uv_textures.new()
 	#	for
-# bpy.ops.object.vertex_group_add()
-# bpy.ops.object.shape_key_add(from_mix=False)
-# bpy.ops.mesh.uv_texture_add()
-#		vg.add([vertice index], weight, "ADD")
-		# me.vertices.add(len(verts_loc))
-		# me.loops.add(tot_loops)
-		# mesh.face.new(surfaces)
+	# bpy.ops.object.vertex_group_add()
+	# bpy.ops.object.shape_key_add(from_mix=False)
+	# bpy.ops.mesh.uv_texture_add()
+	#		vg.add([vertice index], weight, "ADD")
+	# me.vertices.add(len(verts_loc))
+	# me.loops.add(tot_loops)
+	# mesh.face.new(surfaces)
 
 	bpy.ops.object.mode_set(mode='OBJECT')
-	#mesh.from_pydata(vertices_data, [], facesData)
+	# mesh.from_pydata(vertices_data, [], facesData)
 	# important to not remove loop normals here!
 	mesh.validate(clean_customdata=False)
 	mesh.update()
 
 	# Create all the weight groups from the bones.
 	for bone in bones:
-		obj.vertex_groups.new("")
+		obj.vertex_groups.new(name="")
 
 	# Assigne all bone vertex influence.
 	for i, vertex in enumerate(vertices):
@@ -458,16 +514,17 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 			obj.vertex_groups[bone_index4].add(
 				[vertex_indices], weight4, 'REPLACE')
 		else:
-			assert(0)
+			assert 0
 
-	#mesh.polygons.foreach_set("use_smooth", [True] * len(mesh.polygons))
+	# mesh.polygons.foreach_set("use_smooth", [True] * len(mesh.polygons))
 	# mesh.normals_split_custom_set(normal_data)
 	# bpy.ops.object.mode_set(mode='OBJECT')
 
 	return obj, mesh
 
 
-def compute_type_sizes(header):
+# TODO relocate to common
+def compute_vertex_strip_size(header):
 	return {'bdef1': header['bone_index_size'],
 			'bdef2': header['bone_index_size'] * 2 + parse_mmd.const_float,
 			'bdef4': header['bone_index_size'] * 4 + parse_mmd.const_float * 4,
@@ -489,9 +546,24 @@ def load(context,
 		 use_joint_import,
 		 global_matrix=None
 		 ):
-	#view_layer = context.view_layer
+	"""
+		Process:
+			- Read Header
+			- Extract Data
+				- Extracting Vertices
+				- Extract Surface
+				- Extract Texture Paths
+				- Extract Material
+				- Bones
+				- Morph
+				- Display Frame
+				- Rigidbody
+				- Joints
+				- Softbodies
+	"""
+	view_layer = context.view_layer
 
-	with ProgressReport(context.window_manager) as progress:
+	with ProgressReport() as progress:
 		progress.enter_substeps(1, str.format(
 			"Importing MMD file: {}...", filepath))
 
@@ -506,81 +578,104 @@ def load(context,
 		faces = []
 		material_libs = set()
 		vertex_groups = {}
+		unique_materials = {}
 
-		progress.enter_substeps(3, "Parsing MMD file...")
+		progress.enter_substeps(3, "Parsing MMD file... " + filepath)
+
 		with open(filepath, 'rb') as f:
 			# Get information about the model and its internal.
 			header = process_header(f)
-			struct_sizes = compute_type_sizes(header)
+			struct_sizes = compute_vertex_strip_size(header)
 			header.update(struct_sizes)
 
-			version = header['version']
-			# Loading all nedded data.
-			if version >= 2.0:
-				# Vertex count
-				# Vertex
-				#progress.enter_substeps(1,"Extracting Vertex Data...")
-				vertices = parse_mmd.read_full_vertices_data(
+			mmd_version = header['version']
+			# Loading all required data.
+			if mmd_version >= 2.0:
+				# Extracting Vertices
+				progress.enter_substeps(1, "Extracting Vertex Data...")
+				additional_v4_count = header['additional_vec4_count']
+				mmd_vertices = parse_mmd.read_full_vertices_data(
 					f, header, header['additional_vec4_count'])
-				#print("vertex count: " + str(len(vertices)))
+				# print("vertex count: " + str(len(vertices)))
 
-				# Surface
-				#subprogress.enter_substeps(1,"Extracting Surface Data...")
-				surfaces = parse_mmd.read_full_surface_data(f, header)
-				#print("surface count: " + str(len(surfaces)))
-				# for s in surfaces:
-				#	bm.faces.
-				# make the bmesh the object's mesh
+				# Extract Surface data.
+				progress.enter_substeps(1, "Extracting Surface Data...")
+				mdd_surfaces = parse_mmd.read_full_surface_data(f, header)
+				# print("surface count: " + str(len(surfaces)))
 
-				# Texture
-				texture_paths = parse_mmd.read_all_texture_paths(f, header)
-				texture_paths = mmd_util.getFullPaths(filepath, texture_paths)
-				# print(texture_paths)
-				# material
-				materials = parse_mmd.read_all_material(f, header)
+				# Extract Texture Paths
+				progress.enter_substeps(1, "Extracting Texture Path Data...")
+				mmd_texture_paths = parse_mmd.read_all_texture_paths(f, header)
+				#mmd_texture_paths = mmd_util.get_absolute_path(filepath, mmd_texture_paths)
+				print(mmd_texture_paths)
+
+				# Extract material Data
+				progress.enter_substeps(1, "Extracting Material Data...")
+				mmd_materials = parse_mmd.read_all_material(f, header)
 				# print(materials)
-				# Bone
-				bones = parse_mmd.read_all_bones(f, header)
+
+				# Extract Bone data
+				mmd_bones = parse_mmd.read_all_bones(f, header)
 				# print(bones)
-				# Morph
-				morphs = parse_mmd.read_all_morph(f, header)
-				print(morphs)
+
+				# Extract Morph
+				mmd_morphs = parse_mmd.read_all_morph(f, header)
+				print(mmd_morphs)
+
 				# Displayframe count
-				displayFrames = parse_mmd.read_all_display_frames(f, header)
-				print(displayFrames)
+				mmd_displayFrames = parse_mmd.read_all_display_frames(f, header)
+				print(mmd_displayFrames)
 				# Rigidbody count
-				rigidbodies = parse_mmd.read_all_rigidbodies(f, header)
-				print(rigidbodies)
+				mmd_rigidbodies = parse_mmd.read_all_rigidbodies(f, header)
+				print(mmd_rigidbodies)
 				# # Joint count
-				joints = parse_mmd.read_all_joints(f, header)
-				print(joints)
-			if version >= 2.1:
-				softbodies = parse_mmd.read_all_softbody(f, header)
-				print(softbodies)
+				mmd_joints = parse_mmd.read_all_joints(f, header)
+				print(mmd_joints)
+			if mmd_version >= 2.1:
+				mmd_softbodies = parse_mmd.read_all_softbody(f, header)
+				print(mmd_softbodies)
 
 			# Check position and the size of the file and report the state of parsing the file.
 			size = os.path.getsize(filepath)
 			left = size - f.tell()
 			print(left)
 
-		#texture_list = load_mmd_images(filepath, texture_paths)
+		# context.info("")
+		# Construct material
 
 		# materials_set = create_materials(filepath, relpath, material_libs, unique_materials,
-	#                            unique_material_images, use_image_search, use_cycles, float_func)
+		#								 unique_material_images, use_image_search, use_cycles, float_func)
 
+		#
 		progress.step("Done, loading bone skeleton system...")
-		root, bone_objects = create_bone_system(bones)
+		root, bone_objects = create_bone_system(mmd_bones)
 
+		# Construct mesh data object.
 		mesh_object, mesh = create_geometry(
-			vertices, surfaces, bone_objects, header, use_edges, None, use_material_import)
+			mmd_vertices, mdd_surfaces, bone_objects, header, use_edges, None, use_material_import)
 		mesh_object.parent = root
 
-		create_rigidbodies(bone_objects, rigidbodies, joints)
-		#object_materials = create_materials(filepath, texture_paths, materials)
-		#root.data.materils = object_materials
+		# Construct rigidbodies
+		create_rigidbodies(bone_objects, mmd_rigidbodies, mmd_joints)
 
-		# create_materials(filepath, texture_paths, material_libs, unique_materials,
-		#                   unique_material_images, use_image_search, use_cycles, float_func)
+		# Load all the image files
+		progress.step("Done, loading texture/images...")
+		mmd_texture_object = load_mmd_images(filepath, mmd_texture_paths)
+
+		progress.step("Done, material...")
+		object_materials = create_materials(filepath, mmd_texture_paths, material_libs, unique_materials,
+											mmd_texture_object, use_image_search, use_cycles,
+											mmd_materials=mmd_materials)
+
+		mesh_object.select_set(True)
+		context.view_layer.objects.active = mesh_object
+		for name, material in object_materials.items():
+			mesh_object.data.materials.append(material)
+		#			bpy.ops.object.material_slot_add()
+		#			bpy.context.material = material
+		#			bpy.ops.object.material_slot_assign()
+
+		#
 		#
 		# progress.step("Done, building geometries (verts:%i faces:%i materials: %i smoothgroups:%i) ..." %
 		#               (len(verts_loc), len(faces), len(unique_materials), len(unique_smooth_groups)))
@@ -612,7 +707,7 @@ def load(context,
 
 		#	create_mesh
 
-		scene.update()
+		# scene.update()
 
 		axis_min = [1000000000] * 3
 		axis_max = [-1000000000] * 3

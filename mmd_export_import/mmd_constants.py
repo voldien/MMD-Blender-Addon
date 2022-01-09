@@ -1,5 +1,4 @@
-
-
+# <pep8 compliant>
 data_section_names = ['Vertex', 'Face', 'Texture', 'Material',
 					  'Bone', 'Morph', 'Frame', 'Rigidbody', 'Joint', 'Softbody']
 index_attribute_names = ['text_encoding', 'additional_vec4_count', 'vertex_index_size', 'texture_index_size',

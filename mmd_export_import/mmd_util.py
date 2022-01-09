@@ -1,16 +1,16 @@
+# <pep8 compliant>
 import os
-
 if "bpy" in locals():
 	import importlib
 
 	if "parse_mmd" in locals():
-		importlib.reload(parse_mmd)
+		importlib.reload(mmd_export_import.mmd_constants)
 
-from . import parse_mmd
+import mmd_export_import.mmd_constants as mmd_constants
 
 
 def validate_version_signature(sig, version):
-	magic_signature = parse_mmd.magic_signature
+	magic_signature = mmd_constants.magic_signature
 	if version > 2.0:
 		pass
 	for i, l in enumerate(sig):
@@ -19,5 +19,5 @@ def validate_version_signature(sig, version):
 	return True
 
 
-def getFullPaths(filepath, texture_paths):
+def get_absolute_path(filepath, texture_paths):
 	return [os.fsdecode(str.format("{}/{}", filepath, t_path)) for t_path in texture_paths]
