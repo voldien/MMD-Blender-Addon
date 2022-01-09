@@ -50,6 +50,7 @@ def load_mmd_images(mmd_file_root_path, texture_paths):
 	filepath_dir = os.path.dirname(mmd_file_root_path)
 	for texture_filename in texture_paths:
 		texture_absolute_path = str.format("{}{}{}", filepath_dir, os.path.sep, texture_filename)
+		print(texture_absolute_path)
 		texture = load_image(texture_absolute_path)
 		if texture is not None:
 			texture.name = texture_filename
@@ -72,9 +73,6 @@ def create_materials(filepath, relpath,
 
 	unique_material_images = {}
 
-	textures = load_mmd_images(filepath, texture_paths)
-	# bpy.data.materials.new(name="MaterialName")
-
 	bpy.ops.object.mode_set(mode='OBJECT')
 
 	# make sure face select mode is enabled
@@ -90,32 +88,35 @@ def create_materials(filepath, relpath,
 		local_material.use_nodes = True
 		local_material.blend_method = 'BLEND'
 		local_material.show_transparent_back = False
+		local_material.diffuse_color = m["diffuse"]
+		local_material.specular_color = m["specular_color"]
+		local_material.specular_intensity = m["specular_intensity"]
 
 		# local_material.ambient = m["ambient_color"]
+		m["environment_blend_mode"]
+		toon_ref = m["toon_reference"]
+		m["toon_value"]
+
+		material_flag = m["flag"]
+		if material_flag & parse_mmd.const_material_flag_nocull:
+			local_material.use_backface_culling = False
+		#		if material_flag & parse_mmd.const_material_flag_ground_shadow:
+		#			local_material.use_backface_culling = Fals
+		if material_flag & parse_mmd.const_material_flag_draw_shadow:
+			local_material.shadow_method = 'OPAQUE'
 
 		principled = node_shader_utils.PrincipledBSDFWrapper(local_material, is_readonly=False)
 		principled.base_color = m["diffuse"][0:3]
+		principled.alpha = m["diffuse"][3]
+
 		texture_index = m["texture_index"]
 		environment_index = m["environment_index"]
-		if texture_index < len(mmd_texture_object):
+		if texture_index >= 0:
 			principled.base_color_texture.image = mmd_texture_object[texture_index]
+		# principled.alpha_texture.image = mmd_texture_object[texture_index]
+
 		# principled.alpha = mmd_texture_object[texture_index].to_a()
-		unique_materials[name] = local_material
-
-	# if True:  # use_cycles
-	# from modules import cycles_shader_compat
-	# ma_wrap = cycles_shader_compat.CyclesShaderWrapper(ma)
-
-	# for name in unique_materials:  # .keys()
-	# 	if name is not None:
-	# 		unique_materials[name] = bpy.data.materials.new(name=
-	# 														name)
-	# assign None to all material images to start with, add to later.
-	# unique_material_images[name] = ma
-	# if use_cycles:
-	# 	from modules import cycles_shader_compat
-	# 	ma_wrap = cycles_shader_compat.CyclesShaderWrapper(ma)
-	# 	cycles_material_wrap_map[ma] = ma_wrap
+		unique_materials.append(local_material)
 
 	return unique_materials
 
@@ -337,6 +338,8 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 	edges = []
 	tot_loops = 0
 
+	#additonal_uv = header["additional_vec"]
+
 	vertices_data = []
 	normal_data = []
 
@@ -360,7 +363,7 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 	mesh.normals_split_custom_set_from_vertices(normal_data)
 	mesh.use_auto_smooth = True
 
-	#mesh.object_type = 'MESH'
+	# mesh.object_type = 'MESH'
 	# mesh.userText = mesh_struct.user_text
 	# mesh.sort_level = mesh_struct.header.sort_level
 	# mesh.casts_shadow = mesh_struct.casts_shadow()
@@ -440,7 +443,9 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 			idx = triangles[i][loop.index % 3]
 			pos_normal_uv = vertices[idx]['vertex']
 			uv_layer.data[loop.index].uv = (pos_normal_uv[6], pos_normal_uv[7])
-
+	for i in range(0, additonal_uv):
+		uv_layer = mesh.uv_layers.new(do_init=False)
+		uv_layer.name = "expand UV" + str(i)
 
 	# Create all the weight groups from the bones.
 	for bone in bones:
@@ -506,7 +511,6 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 	mesh.update()
 	mesh.validate(clean_customdata=False)
 
-
 	# mesh.polygons.foreach_set("use_smooth", [True] * len(mesh.polygons))
 	# mesh.normals_split_custom_set(normal_data)
 	# bpy.ops.object.mode_set(mode='OBJECT')
@@ -569,7 +573,7 @@ def load(context,
 		faces = []
 		material_libs = set()
 		vertex_groups = {}
-		unique_materials = {}
+		unique_materials = []
 
 		progress.enter_substeps(3, "Parsing MMD file... " + filepath)
 
@@ -658,9 +662,11 @@ def load(context,
 											mmd_texture_object, use_image_search, use_cycles,
 											mmd_materials=mmd_materials)
 
+		assert len(object_materials) == len(mmd_materials)
+
 		mesh_object.select_set(True)
 		context.view_layer.objects.active = mesh_object
-		for name, material in object_materials.items():
+		for material in object_materials:
 			mesh_object.data.materials.append(material)
 
 		bpy.ops.object.mode_set(mode='EDIT')
@@ -668,7 +674,6 @@ def load(context,
 		face = b_mesh.faces
 		for s in face:
 			s.select = False
-		material_offset = 0
 
 		# for i, face in enumerate(b_mesh.faces):
 		# 	for loop in face.loops:
@@ -676,28 +681,29 @@ def load(context,
 		# 		pos_normal_uv = vertices[idx]['vertex']
 		# 		uv_layer.data[loop.index].uv = (pos_normal_uv[6], pos_normal_uv[7])
 		#
+		material_offset = 0
 		for i, material in enumerate(mmd_materials):
-			surface_count = material["surface_count"]
-			select_surface = b_mesh.faces[material_offset:material_offset+surface_count]
+			print(str(i))
+			surface_count = int(material["surface_count"] / 3)
+			select_surface = b_mesh.faces[material_offset:material_offset + surface_count]
 			for s in select_surface:
 				s.select = True
 			bpy.context.object.active_material_index = i
 			bpy.ops.object.material_slot_assign()
 
-			for s in select_surface:
-				s.select = False
+			bpy.ops.object.material_slot_deselect()
 			material_offset += surface_count
+
+		print(str(material_offset * 3) + " " + str(int(material["surface_count"])) + "\n")
+		assert material_offset * 3 == material["surface_count"]
+
 		bmesh.update_edit_mesh(mesh=mesh)
 		bpy.ops.object.mode_set(mode='OBJECT')
-		#
-		#
-		# progress.step("Done, building geometries (verts:%i faces:%i materials: %i smoothgroups:%i) ..." %
-		#               (len(verts_loc), len(faces), len(unique_materials), len(unique_smooth_groups)))
+
+		progress.step("Done, building geometries (verts:{0} faces:{1} materials: {2}) ...",
+					  (len(verts_loc), len(faces), len(unique_materials)))
 
 		progress.step("Done, loading geometry data..")
-
-		# for m in materials:
-		# 	mesh.materials.append(m)
 
 		progress.step("Done, loading materials and images...")
 
