@@ -31,7 +31,7 @@ const_morph_type_impulse = 10
 const_material_flag_nocull = 0x1
 const_material_flag_ground_shadow = 0x2
 const_material_flag_draw_shadow = 0x4
-const_material_flag_recieve_shadow = 0x8
+const_material_flag_receive_shadow = 0x8
 const_material_flag_has_edge = 0x10
 const_material_flag_vertex_color = 0x20
 const_material_flag_point_drawing = 0x40
@@ -41,7 +41,7 @@ const_material_flag_line_drawing = 0x80
 const_bone_flag_index_tail_position = 0x1
 const_bone_flag_rotatable = 0x2
 const_bone_flag_translatable = 0x4
-const_bone_flag_is_visable = 0x8
+const_bone_flag_is_visible = 0x8
 const_bone_flag_enabled = 0x10
 const_bone_flag_ik = 0x20
 const_bone_flag_inherit_rotation = 0x100
@@ -79,12 +79,32 @@ deform_lookup_table = {0: 'bdef1',
 					   4: 'qdef'}
 
 
-def read_full_vertices_data(reader, struct_sizes, additional):
+class Vertices:
+	pass
+
+
+class Surface:
+	pass
+
+
+class Morph:
+	pass
+
+
+class Material:
+	pass
+
+
+class MMDParser:
+	pass
+
+
+def read_full_vertices_data(reader, struct_sizes, additional_vec4):
 	num_vertices = read_uint(reader)
 	vertices = []
 
 	for i in range(0, num_vertices):
-		vertex = read_full_vertex_data(reader, struct_sizes, additional)
+		vertex = read_full_vertex_data(reader, struct_sizes, additional_vec4)
 		vertices.append(vertex)
 	return vertices
 
@@ -94,13 +114,15 @@ def write_full_vertices_data(writer, struct_sizes, vertices, additional):
 
 	for i in range(0, num_vertices):
 		pass
-	# {
-	# 	'vertex': pos_normal_uv,
-	# 	'additional_vec': additional_vec,
-	# 	'weight_deform_type': weight_deform_type,
-	# 	'weight_data': weight_data,
-	# 	'edge_scale': edge_scale
-	# }
+
+
+# {
+# 	'vertex': pos_normal_uv,
+# 	'additional_vec': additional_vec,
+# 	'weight_deform_type': weight_deform_type,
+# 	'weight_data': weight_data,
+# 	'edge_scale': edge_scale
+# }
 
 
 def read_bdef1(reader, struct_sizes):
@@ -156,10 +178,10 @@ deform_lookup_function = [read_bdef1,
 						  read_qdef]
 
 
-def read_full_vertex_data(reader, struct_sizes, additional):
+def read_full_vertex_data(reader, struct_sizes, additional_vec4):
 	pos_normal_uv = unpack(b'ffffffff', reader.read(const_vec3 * 2 + const_vec2))
 	additional_vec = []
-	for i in range(0, additional):
+	for i in range(0, additional_vec4):
 		add_vec = read_vec4(reader.read(const_vec4))
 		for f in add_vec:
 			additional_vec.append(f)
@@ -389,7 +411,7 @@ def read_morph_impulse(reader, struct_size):
 
 def read_all_morph(f, struct_sizes):
 	num_morphs = read_int(f)
-	morphs = []
+	morph_targets = []
 	morph_type_parse_lookup = [read_morph_group, read_morph_vertex, read_morph_bone, read_morph_uv, read_morph_uv,
 							   read_morph_uv, read_morph_uv, read_morph_uv, read_morph_material, read_morph_flip,
 							   read_morph_impulse]
@@ -410,8 +432,8 @@ def read_all_morph(f, struct_sizes):
 		parse_func = morph_type_parse_lookup[morph_type]
 		for _ in range(0, offset_size):
 			morph['data'].append(parse_func(f, struct_sizes))
-		morphs.append(morph)
-	return morphs
+		morph_targets.append(morph)
+	return morph_targets
 
 
 def read_frame_bone(reader, struct_sizes):
@@ -568,6 +590,7 @@ def read_signed_index(reader, size_type):
 
 	return lookup_func(reader)
 
+
 def read_index(reader, size_type):
 	size_hash_lookup = {1: read_ubyte, 2: read_ushort, 4: read_uint}
 	lookup_func = size_hash_lookup[size_type]
@@ -597,6 +620,7 @@ def read_uint64(read):
 
 def read_signed_byte(read):
 	return unpack(b'b', read.read(const_byte))[0]
+
 
 def read_ubyte(read):
 	return unpack(b'B', read.read(const_byte))[0]

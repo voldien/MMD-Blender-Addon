@@ -34,6 +34,9 @@ else:
 	from ProgressReport import progress_report
 
 
+class MMDImporter:
+	pass
+
 def insensitive_path(path):
 	# find the io_stream on unix
 	directory = os.path.dirname(path)
@@ -86,20 +89,23 @@ def create_materials(filepath, relpath,
 												name)
 		# local_material.material_type = 'SHADER_MATERIAL'
 		local_material.use_nodes = True
-		local_material.blend_method = 'BLEND'
+		local_material.blend_method = 'OPAQUE'
 		local_material.show_transparent_back = False
 		local_material.diffuse_color = m["diffuse"]
 		local_material.specular_color = m["specular_color"]
 		local_material.specular_intensity = m["specular_intensity"]
 
+
 		# local_material.ambient = m["ambient_color"]
-		m["environment_blend_mode"]
+		env_blend_mode = m["environment_blend_mode"]
 		toon_ref = m["toon_reference"]
-		m["toon_value"]
+		toon_value = m["toon_value"]
 
 		material_flag = m["flag"]
 		if material_flag & parse_mmd.const_material_flag_nocull:
 			local_material.use_backface_culling = False
+		else:
+			local_material.use_backface_culling = True
 		#		if material_flag & parse_mmd.const_material_flag_ground_shadow:
 		#			local_material.use_backface_culling = Fals
 		if material_flag & parse_mmd.const_material_flag_draw_shadow:
@@ -108,6 +114,9 @@ def create_materials(filepath, relpath,
 		principled = node_shader_utils.PrincipledBSDFWrapper(local_material, is_readonly=False)
 		principled.base_color = m["diffuse"][0:3]
 		principled.alpha = m["diffuse"][3]
+
+		if m["diffuse"][3] < 1:
+			local_material.blend_method = 'BLEND'
 
 		texture_index = m["texture_index"]
 		environment_index = m["environment_index"]
@@ -267,6 +276,7 @@ def create_influence(bones, mesh):
 	pass
 
 
+# TODO relocate
 def process_header(f):
 	header = {}
 
@@ -310,23 +320,7 @@ def process_header(f):
 	return header
 
 
-def create_mesh(new_objects,
-				use_edges,
-				verts_loc,
-				verts_nor,
-				verts_tex,
-				faces,
-				unique_materials,
-				unique_material_images,
-				unique_smooth_groups,
-				vertex_groups,
-				use_material_import,
-				dataname,
-				):
-	me = bpy.data.meshes.new(dataname)
-
-
-def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materials, use_material_import, mmd_materials):
+def create_mesh(vertices, surfaces, bones, header, use_edges, unique_materials, use_material_import, mmd_materials):
 	# if unique_smooth_groups:
 	#     sharp_edges = set()
 	#     smooth_group_users = {context_smooth_group: {}
@@ -338,7 +332,7 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 	edges = []
 	tot_loops = 0
 
-	#additonal_uv = header["additional_vec"]
+	additonal_uv = 0  # header["additional_vec"]
 
 	vertices_data = []
 	normal_data = []
@@ -442,7 +436,7 @@ def create_geometry(vertices, surfaces, bones, header, use_edges, unique_materia
 		for loop in face.loops:
 			idx = triangles[i][loop.index % 3]
 			pos_normal_uv = vertices[idx]['vertex']
-			uv_layer.data[loop.index].uv = (pos_normal_uv[6], pos_normal_uv[7])
+			uv_layer.data[loop.index].uv = (pos_normal_uv[6], pos_normal_uv[7] * -1.0 + 1)
 	for i in range(0, additonal_uv):
 		uv_layer = mesh.uv_layers.new(do_init=False)
 		uv_layer.name = "expand UV" + str(i)
@@ -529,6 +523,10 @@ def compute_vertex_strip_size(header):
 			}
 
 
+def assign_mesh_materials():
+	pass
+
+
 def load(context,
 		 filepath,
 		 *,
@@ -584,13 +582,17 @@ def load(context,
 			header.update(struct_sizes)
 
 			mmd_version = header['version']
+			assert isinstance(mmd_version, float)
+
+			additional_v4_count = header['additional_vec4_count']
+
 			# Loading all required data.
 			if mmd_version >= 2.0:
 				# Extracting Vertices
 				progress.enter_substeps(1, "Extracting Vertex Data...")
-				additional_v4_count = header['additional_vec4_count']
+
 				mmd_vertices = parse_mmd.read_full_vertices_data(
-					f, header, header['additional_vec4_count'])
+					f, header, additional_vec4=additional_v4_count)
 				# print("vertex count: " + str(len(vertices)))
 
 				# Extract Surface data.
@@ -615,42 +617,35 @@ def load(context,
 
 				# Extract Morph
 				mmd_morphs = parse_mmd.read_all_morph(f, header)
-				print(mmd_morphs)
+				#print(mmd_morphs)
 
 				# Displayframe count
 				mmd_displayFrames = parse_mmd.read_all_display_frames(f, header)
-				print(mmd_displayFrames)
+				#print(mmd_displayFrames)
 				# Rigidbody count
 				mmd_rigidbodies = parse_mmd.read_all_rigidbodies(f, header)
-				print(mmd_rigidbodies)
+				#print(mmd_rigidbodies)
 				# # Joint count
 				mmd_joints = parse_mmd.read_all_joints(f, header)
-				print(mmd_joints)
+				#print(mmd_joints)
 			if mmd_version >= 2.1:
 				mmd_softbodies = parse_mmd.read_all_softbody(f, header)
-				print(mmd_softbodies)
+				#print(mmd_softbodies)
 
 			# Check position and the size of the file and report the state of parsing the file.
 			size = os.path.getsize(filepath)
 			left = size - f.tell()
 			print(left)
-
-		# context.info("")
-		# Construct material
-
-		# materials_set = create_materials(filepath, relpath, material_libs, unique_materials,
-		#								 unique_material_images, use_image_search, use_cycles, float_func)
-
 		#
 		progress.step("Done, loading bone skeleton system...")
 		root, bone_objects = create_bone_system(mmd_bones)
 
 		# Construct mesh data object.
-		mesh_object, mesh = create_geometry(
+		mesh_object, mesh = create_mesh(
 			mmd_vertices, mdd_surfaces, bone_objects, header, use_edges, None, use_material_import, mmd_materials)
 		mesh_object.parent = root
 
-		# Construct rigidbodies
+		# Construct rigidbodies and joints
 		create_rigidbodies(bone_objects, mmd_rigidbodies, mmd_joints)
 
 		# Load all the image files
@@ -675,6 +670,9 @@ def load(context,
 		for s in face:
 			s.select = False
 
+
+		#TODO relocate
+		assign_mesh_materials()
 		# for i, face in enumerate(b_mesh.faces):
 		# 	for loop in face.loops:
 		# 		idx = triangles[i][loop.index % 3]
@@ -694,11 +692,27 @@ def load(context,
 			bpy.ops.object.material_slot_deselect()
 			material_offset += surface_count
 
-		print(str(material_offset * 3) + " " + str(int(material["surface_count"])) + "\n")
-		assert material_offset * 3 == material["surface_count"]
+		print("material surface: " + str(material_offset * 3) + " " + str(int(material["surface_count"])) + "\n")
+		#assert material_offset * 3 == material["surface_count"]
 
 		bmesh.update_edit_mesh(mesh=mesh)
 		bpy.ops.object.mode_set(mode='OBJECT')
+
+		# Morph
+		if len(mmd_morphs) > 0:
+			morph_shape_key_obj = mesh_object.shape_key_add(name='Basis')
+			morph_shape_key_obj.interpolation = 'KEY_LINEAR'
+			for morph in mmd_morphs:
+				if morph["morph_type"] == parse_mmd.const_morph_type_vertex:
+					morph_shape_key_obj = mesh_object.shape_key_add(name=morph["local_name"])
+					morph_shape_key_obj.interpolation = 'KEY_LINEAR'
+					for morph_data in morph['data']:
+						vertex_index, vec3 = morph_data
+						morph_shape_key_obj.data[vertex_index].co = vec3
+			mesh_object.shape_keys.use_relative = False
+
+		for frame in mmd_displayFrames:
+			pass
 
 		progress.step("Done, building geometries (verts:{0} faces:{1} materials: {2}) ...",
 					  (len(verts_loc), len(faces), len(unique_materials)))
@@ -706,11 +720,6 @@ def load(context,
 		progress.step("Done, loading geometry data..")
 
 		progress.step("Done, loading materials and images...")
-
-		# Morph
-
-		# mesh.polygons.add(len(surfaces))
-		# mesh.polygons.foreach_set("vertices", surfaces)
 
 		#	bmesh.ops.triangulate(bm, faces=bm.faces)
 		#	bm.to_mesh(mesh)

@@ -23,6 +23,11 @@ from mathutils import Matrix, Euler, Vector
 
 # from progress_report import ProgressReport
 
+
+class MMDExport:
+	def export(self):
+		pass
+
 def create_header(f, author, comment, character_name, version, section_data):
 	header = {}
 
