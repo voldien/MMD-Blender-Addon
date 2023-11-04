@@ -8,6 +8,9 @@ from bpy.types import Operator
 import typing
 from bpy.props import BoolProperty, FloatProperty, StringProperty
 
+from . import mmd_export
+from mathutils import Matrix
+
 from bpy_extras.io_utils import (
 	ImportHelper,
 	ExportHelper,
@@ -22,8 +25,8 @@ bl_info = {
 	'author': 'Valdemar Lindberg',
 	'version': (0, 1, 0),
 	'blender': (2, 80, 3),
-	'location': 'File > Import-Export > Miku Mikue Dance',
-	'description': 'Loading Miku Mikue Dance files (.pmx/.pmd/.vmd).',
+	'location': 'File > Import-Export > Miku Miku Dance',
+	'description': 'Loading Miku Miku Dance files (.pmx/.pmd/.vmd).',
 	'warning': 'Still in progress',
 	'wiki_url': '',
 	'doc_url': 'https://github.com/voldien/MMD-Blender-Addon',
@@ -125,25 +128,23 @@ class ExportMMD(Operator, ExportHelper):
 	use_image_search = BoolProperty(
 		name="Image Search",
 		description="Search subdirs for any associated images "
-					"(Warning, may be slow)",
+		            "(Warning, may be slow)",
 		default=True,
 	)
 
 	def execute(self, context) -> typing.Set[typing.Union[str, int]]:
-		from . import mmd_export
 
-		from mathutils import Matrix
 		keywords = self.as_keywords(ignore=("axis_forward",
-											"axis_up",
-											"global_scale",
-											"check_existing",
-											"filter_glob",
-											))
+		                                    "axis_up",
+		                                    "global_scale",
+		                                    "check_existing",
+		                                    "filter_glob",
+		                                    ))
 
 		global_matrix = (Matrix.Scale(self.global_scale, 4) *
-						 axis_conversion(to_forward=self.axis_forward,
-										 to_up=self.axis_up,
-										 ).to_4x4())
+		                 axis_conversion(to_forward=self.axis_forward,
+		                                 to_up=self.axis_up,
+		                                 ).to_4x4())
 
 		keywords["global_matrix"] = global_matrix
 		return mmd_export.save(context, **keywords)
@@ -188,16 +189,16 @@ class ImportMMD(Operator, ImportHelper):
 	use_image_search = BoolProperty(
 		name="Image Search",
 		description="Search subdirs for any associated images "
-					"(Warning, may be slow)",
+		            "(Warning, may be slow)",
 		default=True,
 	)
 
 	use_material_import = BoolProperty(name="Import Material",
-									   description="",
-									   default=True)
+	                                   description="",
+	                                   default=True)
 	use_joint_import = BoolProperty(name="Import Joints",
-									description="",
-									default=True)
+	                                description="",
+	                                default=True)
 
 	global_clamp_size = FloatProperty(
 		name="Clamp Size",
@@ -209,8 +210,8 @@ class ImportMMD(Operator, ImportHelper):
 	split_mode = BoolProperty(name="split_mode", description="", default=False)
 
 	use_split_objects = BoolProperty(name="Split Objects",
-									 description="",
-									 default=True)
+	                                 description="",
+	                                 default=True)
 
 	def execute(self, context) -> typing.Set[typing.Union[str, int]]:
 
@@ -221,14 +222,14 @@ class ImportMMD(Operator, ImportHelper):
 			self.use_groups_as_vgroups = False
 
 		keywords = self.as_keywords(ignore=("axis_forward",
-											"axis_up",
-											"filter_glob",
-											"split_mode",
-											))
+		                                    "axis_up",
+		                                    "filter_glob",
+		                                    "split_mode",
+		                                    ))
 
 		global_matrix = axis_conversion(from_forward=self.axis_forward,
-										from_up=self.axis_up,
-										).to_4x4()
+		                                from_up=self.axis_up,
+		                                ).to_4x4()
 		keywords["global_matrix"] = global_matrix
 		keywords["use_cycles"] = (context.scene.render.engine == 'CYCLES')
 
@@ -244,32 +245,15 @@ class ImportMMD(Operator, ImportHelper):
 	def draw(self, context):
 		layout = self.layout
 
-	# row = layout.row(align=True)
-	# row.prop(self, "use_smooth_groups")
-	# row.prop(self, "use_edges")
-	#
-	# box = layout.box()
-	# row = box.row()
-	# row.prop(self, "split_mode", expand=True)
-	#
-	# row = layout.split()
-	# row.prop(self, "global_clamp_size")
-	# layout.prop(self, "axis_forward")
-	# layout.prop(self, "axis_up")
-	#
-	# layout.prop(self, "use_image_search")
-	# layout.prop(self, "use_material_import")
-	# layout.prop(self, "use_joint_import")
-
 
 def menu_func_import(self, context):
 	self.layout.operator(ImportMMD.bl_idname,
-						 text="Miku Miku Dance MMD (.pmx/.pmd/.vmd)")
+	                     text="Miku Miku Dance MMD (.pmx/.pmd/.vmd)")
 
 
 def menu_func_export(self, context):
 	self.layout.operator(ExportMMD.bl_idname,
-						 text="Miku Miku Dance MMD (.pmx/.pmd/.vmd)")
+	                     text="Miku Miku Dance MMD (.pmx/.pmd/.vmd)")
 
 
 menu_func_list = [menu_func_import, menu_func_export]
@@ -281,6 +265,7 @@ classes = (
 
 
 def register():
+	# Register and Import and Export.
 	for cls in classes:
 		bpy.utils.register_class(cls)
 
@@ -302,6 +287,7 @@ def unregister():
 		bpy.types.INFO_MT_file_import.remove(menu_func_import)
 		bpy.types.INFO_MT_mesh_add.remove(menu_func_import)
 
+	# Unregister import and export.
 	for class_ in reversed(classes):
 		bpy.utils.unregister_class(class_)
 

@@ -14,19 +14,21 @@ import time
 import bpy
 import mathutils
 import mathutils
-import  mmd_export_import.mmd_util as mmd_util
-import mmd_export_import.parse_mmd as parse_mmd
+import mmd_export_import.mmd_util as mmd_util
+import mmd_export_import.mmd_parser as parse_mmd
 from bpy_extras.image_utils import load_image
 from bpy_extras.io_utils import unpack_list
 from bpy_extras.wm_utils.progress_report import ProgressReport
 from mathutils import Matrix, Euler, Vector
 
+
 # from progress_report import ProgressReport
 
 
 class MMDExport:
-	def export(self):
+	def export(self, path : str, selected_objects : list):
 		pass
+
 
 def create_header(f, author, comment, character_name, version, section_data):
 	header = {}
@@ -38,10 +40,11 @@ def create_header(f, author, comment, character_name, version, section_data):
 	header['globals_count'] = parse_mmd.read_ubyte(f)
 
 	data_section_names = ['Vertex', 'Face', 'Texture', 'Material',
-						  'Bone', 'Morph', 'Frame', 'Rigidbody', 'Joint', 'Softbody']
+	                      'Bone', 'Morph', 'Frame', 'Rigidbody', 'Joint', 'Softbody']
+
 	index_attribute_names = ['text_encoding', 'additional_vec4_count', 'vertex_index_size', 'texture_index_size',
-							 'material_index_size',
-							 'bone_index_size', 'morph_index_size', 'rigid_index_size']
+	                         'material_index_size',
+	                         'bone_index_size', 'morph_index_size', 'rigid_index_size']
 	nindex = 0
 	for n in index_attribute_names:
 		# Continue grabbing index data only if additional exits.
@@ -66,26 +69,27 @@ def create_header(f, author, comment, character_name, version, section_data):
 
 
 def save(context,
-		 filepath,
-		 *,
-		 author,
-		 comment,
-		 character_name,
-		 use_triangles=False,
-		 use_edges=True,
-		 use_normals=False,
-		 use_smooth_groups=False,
-		 use_smooth_groups_bitflags=False,
-		 use_uvs=True,
-		 use_materials=True,
-		 use_mesh_modifiers=True,
-		 use_mesh_modifiers_render=False,
-		 keep_vertex_order=False,
-		 use_vertex_groups=False,
-		 use_animation=False,
-		 global_matrix=None,
-		 use_image_search=False,
-		 path_mode='AUTO'):
+         filepath,
+         *,
+         author,
+         comment,
+         character_name,
+         use_triangles=False,
+         use_edges=True,
+         use_normals=False,
+         use_smooth_groups=False,
+         use_smooth_groups_bitflags=False,
+         use_uvs=True,
+         use_materials=True,
+         use_mesh_modifiers=True,
+         use_mesh_modifiers_render=False,
+         keep_vertex_order=False,
+         use_vertex_groups=False,
+         use_animation=False,
+         global_matrix=None,
+         use_image_search=False,
+         path_mode='AUTO'):
+
 	with ProgressReport(context.window_manager) as progress:
 		base_name, ext = os.path.splitext(filepath)
 		# Base name, scene name, frame number, extension
@@ -120,7 +124,7 @@ def save(context,
 
 		for poly in mesh.polygons:
 			print("Polygon index: %d, length: %d" %
-				  (poly.index, poly.loop_total))
+			      (poly.index, poly.loop_total))
 
 			# range is used here to show how the polygons reference loops,
 			# for convenience 'poly.loop_indices' can be used instead.

@@ -1,10 +1,8 @@
-[![Linux Build](https://github.com/voldien/MMD-Blender-Addon/actions/workflows/linux-build.yml/badge.svg)](https://github.com/voldien/MMD-Blender-Addon/actions/workflows/ci.yml)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/voldien/MMD-Blender-Addon.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/voldien/MMD-Blender-Addon/context:python)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub release](https://img.shields.io/github/release/voldien/MMD-Blender-Addon.svg)](https://github.com/voldien/MMD-Blender-Addon/releases)
 
 # MMD (Miku Miku Dance) Importer/Exporter
-A Mike miku dance loader for Blender 2.83 and forward.
+A **Mike Miku Dance** loader for Blender 2.83 and forward.
 
 ## Features
 
@@ -20,11 +18,13 @@ A Mike miku dance loader for Blender 2.83 and forward.
 - [ ] vmd Support
 
 ## Motivation
-Both create and import Miku Miku Dance object to blender.
+Both Export and Import Miku Miku Dance object with Blender 3D.
 
 ## Installation
 
-## Examples
+Download the [archieve](https://github.com/voldien/Camera-Set-Addon/releases) zip file.
+
+Open up the Preference Window -> Addon -> Install -> Select Zip file.
 
 ## License
 

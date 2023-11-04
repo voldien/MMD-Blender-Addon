@@ -4,7 +4,7 @@ if "bpy" in locals():
 	import importlib
 
 	if "parse_mmd" in locals():
-		importlib.reload(mmd_export_import.parse_mmd)
+		importlib.reload(mmd_export_import.parse)
 	if "mmd_util" in locals():
 		importlib.reload(mmd_export_import.mmd_util)
 
@@ -13,8 +13,9 @@ from bpy_extras import node_shader_utils
 
 from bpy_extras.mesh_utils import ngon_tessellate
 
-import mmd_export_import.parse_mmd as parse_mmd
+import mmd_export_import.mmd_parser as parse_mmd
 import mmd_export_import.mmd_util as mmd_util
+from mmd_export_import.mmd_parser import MMDParser
 
 from mathutils import Matrix, Euler, Vector
 import array
@@ -35,7 +36,9 @@ else:
 
 
 class MMDImporter:
-	pass
+	def import_(self, path):
+		pass
+
 
 def insensitive_path(path):
 	# find the io_stream on unix
@@ -63,8 +66,8 @@ def load_mmd_images(mmd_file_root_path, texture_paths):
 
 
 def create_materials(filepath, relpath,
-					 material_libs, unique_materials, mmd_texture_object,
-					 use_image_search, use_cycles, mmd_materials):
+                     material_libs, unique_materials, mmd_texture_object,
+                     use_image_search, use_cycles, mmd_materials):
 	DIR = os.path.dirname(filepath)
 	texture_paths = DIR
 	context_material_vars = set()
@@ -86,7 +89,7 @@ def create_materials(filepath, relpath,
 		name = m['local_name']
 
 		local_material = bpy.data.materials.new(name=
-												name)
+		                                        name)
 		# local_material.material_type = 'SHADER_MATERIAL'
 		local_material.use_nodes = True
 		local_material.blend_method = 'OPAQUE'
@@ -95,14 +98,13 @@ def create_materials(filepath, relpath,
 		local_material.specular_color = m["specular_color"]
 		local_material.specular_intensity = m["specular_intensity"]
 
-
 		# local_material.ambient = m["ambient_color"]
 		env_blend_mode = m["environment_blend_mode"]
 		toon_ref = m["toon_reference"]
 		toon_value = m["toon_value"]
 
 		material_flag = m["flag"]
-		if material_flag & parse_mmd.const_material_flag_nocull:
+		if material_flag & parse_mmd.const_material_flag_no_culling:
 			local_material.use_backface_culling = False
 		else:
 			local_material.use_backface_culling = True
@@ -184,23 +186,32 @@ def create_bone_system(bones):
 
 	for i, bone in enumerate(bones):
 		utf8_bone_name = bone['local_name']
-		mmd_flags = bone['flag']
+		bone_flag = bone['flag']
 		arm_bone = root.data.edit_bones.new(name=utf8_bone_name)
 
 		#		arm_bone.visable = mmd_flags & parse_mmd.const_bone_flag_is_visable
 
-		if mmd_flags & parse_mmd.const_bone_flag_inherit_rotation == 0:
+		if bone_flag & parse_mmd.const_bone_flag_inherit_rotation == 0:
 			arm_bone.use_inherit_rotation = False
 		else:
 			arm_bone.use_inherit_rotation = True
-		# if mmd_flags & parse_mmd.const_bone_flag_inherit_translation == 0:
-		#	arm_bone.use_inherit_rotation = False
-		# else:
-		#	arm_bone.use_inherit_rotation = True
-		if mmd_flags & parse_mmd.const_bone_flag_local_co_coordinate:
+
+		if bone_flag & parse_mmd.const_bone_flag_inherit_translation == 0:
+			arm_bone.use_inherit_rotation = False
+		else:
+			arm_bone.use_inherit_rotation = True
+
+		if bone_flag & parse_mmd.const_bone_flag_local_co_coordinate:
 			arm_bone.use_local_location = True
 		else:
 			arm_bone.use_local_location = False
+
+		if bone_flag & parse_mmd.const_bone_flag_is_visible:
+			pass  # arm_bone.visable= True
+		if bone_flag & parse_mmd.const_bone_flag_is_visible:
+			arm_bone.use_deform = True
+		else:
+			arm_bone.use_deform = False
 
 		arm_bone.head = bone['position']
 		arm_bone.layers[bone['layer']] = True
@@ -236,7 +247,7 @@ def create_bone_system(bones):
 
 	for i, bone in enumerate(bones):
 		arm_bone = bone_objects[i]
-		mmd_flags = bone['flag']
+		bone_flag = bone['flag']
 		if "parent_index" in bone.keys():
 			parent_index = bone['parent_index']
 			parent_influence = bone['parent_influence']
@@ -248,7 +259,7 @@ def create_bone_system(bones):
 			child_of.subtarget = root.pose.bones[parent_index].name
 			child_of.influence = parent_influence
 
-		if mmd_flags & parse_mmd.const_bone_flag_ik:
+		if bone_flag & parse_mmd.const_bone_flag_ik:
 			target_index = bone['target_index']
 			chain_count = bone['link_count']
 
@@ -293,10 +304,10 @@ def process_header(f):
 	header['globals_count'] = parse_mmd.read_ubyte(f)
 
 	data_section_names = ['Vertex', 'Face', 'Texture', 'Material',
-						  'Bone', 'Morph', 'Frame', 'Rigidbody', 'Joint', 'Softbody']
+	                      'Bone', 'Morph', 'Frame', 'Rigidbody', 'Joint', 'Softbody']
 	index_attribute_names = ['text_encoding', 'additional_vec4_count', 'vertex_index_size', 'texture_index_size',
-							 'material_index_size',
-							 'bone_index_size', 'morph_index_size', 'rigid_index_size']
+	                         'material_index_size',
+	                         'bone_index_size', 'morph_index_size', 'rigid_index_size']
 	nindex = 0
 	for n in index_attribute_names:
 		# Continue grabbing index data only if additional exits.
@@ -349,7 +360,7 @@ def create_mesh(vertices, surfaces, bones, header, use_edges, unique_materials, 
 		triangles.append((i0, i1, i2))
 
 	mesh = bpy.data.meshes.new(name=
-							   header['local_character_name'])  # add a new mesh
+	                           header['local_character_name'])  # add a new mesh
 	print("assign data " + str(len(vertices_data)) + " " + str(len(triangles)))
 	mesh.from_pydata(vertices_data, [], triangles)
 	mesh.validate(verbose=True)
@@ -365,7 +376,7 @@ def create_mesh(vertices, surfaces, bones, header, use_edges, unique_materials, 
 
 	mesh_obj = bpy.data.objects.new(header['local_character_name'], mesh)
 	mesh_obj.use_empty_image_alpha = True
-	# # make sure the list isnt too big
+	# # make sure the list isn't too big
 	# for material in materials:
 	#     me.materials.append(material)
 	#
@@ -443,7 +454,7 @@ def create_mesh(vertices, surfaces, bones, header, use_edges, unique_materials, 
 
 	# Create all the weight groups from the bones.
 	for bone in bones:
-		mesh_obj.vertex_groups.new(name="")
+		mesh_obj.vertex_groups.new(name=bone["local_name"])
 
 	# Assign all bone vertex influence.
 	for i, vertex in enumerate(vertices):
@@ -515,12 +526,12 @@ def create_mesh(vertices, surfaces, bones, header, use_edges, unique_materials, 
 # TODO relocate to common
 def compute_vertex_strip_size(header):
 	return {'bdef1': header['bone_index_size'],
-			'bdef2': header['bone_index_size'] * 2 + parse_mmd.const_float,
-			'bdef4': header['bone_index_size'] * 4 + parse_mmd.const_float * 4,
-			'sdef': header['bone_index_size'] * 2 + parse_mmd.const_float + parse_mmd.const_vec3 * 3,
-			'qdef': header['bone_index_size'] * 4 + parse_mmd.const_float * 4,
-			# TOOD add more.
-			}
+	        'bdef2': header['bone_index_size'] * 2 + parse_mmd.pmx_const_float,
+	        'bdef4': header['bone_index_size'] * 4 + parse_mmd.pmx_const_float * 4,
+	        'sdef': header['bone_index_size'] * 2 + parse_mmd.pmx_const_float + parse_mmd.pmx_const_vec3 * 3,
+	        'qdef': header['bone_index_size'] * 4 + parse_mmd.pmx_const_float * 4,
+	        # TOOD add more.
+	        }
 
 
 def assign_mesh_materials():
@@ -528,17 +539,17 @@ def assign_mesh_materials():
 
 
 def load(context,
-		 filepath,
-		 *,
-		 global_clamp_size=0.0,
-		 use_edges=True,
-		 use_image_search=True,
-		 use_cycles=True,
-		 relpath=None,
-		 use_material_import,
-		 use_joint_import,
-		 global_matrix=None
-		 ):
+         filepath,
+         *,
+         global_clamp_size=0.0,
+         use_edges=True,
+         use_image_search=True,
+         use_cycles=True,
+         relpath=None,
+         use_material_import,
+         use_joint_import,
+         global_matrix=None
+         ):
 	"""
 		Process:
 			- Read Header
@@ -554,8 +565,10 @@ def load(context,
 				- Joints
 				- Softbodies
 	"""
+	#
 	view_layer = context.view_layer
 
+	#
 	with ProgressReport() as progress:
 		progress.enter_substeps(1, str.format(
 			"Importing MMD file: {}...", filepath))
@@ -573,9 +586,14 @@ def load(context,
 		vertex_groups = {}
 		unique_materials = []
 
+		#
 		progress.enter_substeps(3, "Parsing MMD file... " + filepath)
 
+		parser = MMDParser(filepath)
+
+		# TODO remove and be replaced with the parser object.
 		with open(filepath, 'rb') as f:
+
 			# Get information about the model and its internal.
 			header = process_header(f)
 			struct_sizes = compute_vertex_strip_size(header)
@@ -613,36 +631,33 @@ def load(context,
 
 				# Extract Bone data
 				mmd_bones = parse_mmd.read_all_bones(f, header)
-				# print(bones)
 
 				# Extract Morph
 				mmd_morphs = parse_mmd.read_all_morph(f, header)
-				#print(mmd_morphs)
 
 				# Displayframe count
 				mmd_displayFrames = parse_mmd.read_all_display_frames(f, header)
-				#print(mmd_displayFrames)
+
 				# Rigidbody count
 				mmd_rigidbodies = parse_mmd.read_all_rigidbodies(f, header)
-				#print(mmd_rigidbodies)
+
 				# # Joint count
 				mmd_joints = parse_mmd.read_all_joints(f, header)
-				#print(mmd_joints)
+
 			if mmd_version >= 2.1:
 				mmd_softbodies = parse_mmd.read_all_softbody(f, header)
-				#print(mmd_softbodies)
 
 			# Check position and the size of the file and report the state of parsing the file.
 			size = os.path.getsize(filepath)
 			left = size - f.tell()
-			print(left)
+
 		#
 		progress.step("Done, loading bone skeleton system...")
 		root, bone_objects = create_bone_system(mmd_bones)
 
 		# Construct mesh data object.
 		mesh_object, mesh = create_mesh(
-			mmd_vertices, mdd_surfaces, bone_objects, header, use_edges, None, use_material_import, mmd_materials)
+			mmd_vertices, mdd_surfaces, mmd_bones, header, use_edges, None, use_material_import, mmd_materials)
 		mesh_object.parent = root
 
 		# Construct rigidbodies and joints
@@ -654,24 +669,25 @@ def load(context,
 
 		progress.step("Done, material...")
 		object_materials = create_materials(filepath, mmd_texture_paths, material_libs, unique_materials,
-											mmd_texture_object, use_image_search, use_cycles,
-											mmd_materials=mmd_materials)
+		                                    mmd_texture_object, use_image_search, use_cycles,
+		                                    mmd_materials=mmd_materials)
 
 		assert len(object_materials) == len(mmd_materials)
 
+		#
 		mesh_object.select_set(True)
 		context.view_layer.objects.active = mesh_object
 		for material in object_materials:
 			mesh_object.data.materials.append(material)
 
+		#
 		bpy.ops.object.mode_set(mode='EDIT')
 		b_mesh = bmesh.from_edit_mesh(mesh)
 		face = b_mesh.faces
 		for s in face:
 			s.select = False
 
-
-		#TODO relocate
+		# TODO relocate
 		assign_mesh_materials()
 		# for i, face in enumerate(b_mesh.faces):
 		# 	for loop in face.loops:
@@ -693,15 +709,17 @@ def load(context,
 			material_offset += surface_count
 
 		print("material surface: " + str(material_offset * 3) + " " + str(int(material["surface_count"])) + "\n")
-		#assert material_offset * 3 == material["surface_count"]
+		# assert material_offset * 3 == material["surface_count"]
 
 		bmesh.update_edit_mesh(mesh=mesh)
 		bpy.ops.object.mode_set(mode='OBJECT')
 
-		# Morph
+		# Morph (Key Shape)
 		if len(mmd_morphs) > 0:
 			morph_shape_key_obj = mesh_object.shape_key_add(name='Basis')
 			morph_shape_key_obj.interpolation = 'KEY_LINEAR'
+
+			# Add all key shapes.
 			for morph in mmd_morphs:
 				if morph["morph_type"] == parse_mmd.const_morph_type_vertex:
 					morph_shape_key_obj = mesh_object.shape_key_add(name=morph["local_name"])
@@ -709,13 +727,22 @@ def load(context,
 					for morph_data in morph['data']:
 						vertex_index, vec3 = morph_data
 						morph_shape_key_obj.data[vertex_index].co = vec3
-			mesh_object.shape_keys.use_relative = False
+			morph_shape_key_obj.use_relative = False
 
+		# Read animation.
 		for frame in mmd_displayFrames:
-			pass
+			frame_flag = frame.frame_type
+			#
+			for frame_data_s in frame.data:
+				(frame_flag, frame_data) = frame_data_s
+				if frame_flag == parse_mmd.const_frame_type_bone:
+					pass
+				elif frame_flag == parse_mmd.const_frame_type_morph:
+					pass
 
-		progress.step("Done, building geometries (verts:{0} faces:{1} materials: {2}) ...",
-					  (len(verts_loc), len(faces), len(unique_materials)))
+		#
+		progress.step("Done, building geometries (vertices:{0} faces:{1} materials: {2}) ...",
+		              (len(verts_loc), len(faces), len(unique_materials)))
 
 		progress.step("Done, loading geometry data..")
 
